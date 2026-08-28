@@ -18,6 +18,8 @@ The production server currently refreshes and validates:
 - Intelligent Octopus Go off-peak rate and Octopus public product API
 - DESNZ official weekly UK petrol and diesel prices
 - current warranty source pages, with change detection against expected headline cover
+- vehicle-specific Euro NCAP stars, protection percentages, test year and expired-rating context
+- public DVSA/GOV.UK model-year recall history for every shortlisted vehicle
 - daily source-change monitoring via GitHub Actions
 - daily live refresh via Vercel Cron
 - manual on-demand refresh from the UI
@@ -32,8 +34,8 @@ The code paths are already present; these become live when the relevant provider
 | --- | --- | --- |
 | MarketCheck UK | `MARKETCHECK_API_KEY` | live UK nearly-new inventory, median asking price, mileage and listing count |
 | CAP HPI | `CAP_HPI_CLIENT_ID`, `CAP_HPI_CLIENT_SECRET` | licensed current/future valuations and residual values |
-| Auto Trader Connect | `AUTOTRADER_CLIENT_ID`, `AUTOTRADER_CLIENT_SECRET` | authorised Search Adverts integration; production capability also requires Auto Trader approval |
-| GOV.UK Fuel Finder | `FUEL_FINDER_CLIENT_ID`, `FUEL_FINDER_CLIENT_SECRET` | near-real-time local forecourt fuel prices |
+| Auto Trader Connect | `AUTOTRADER_API_KEY`, `AUTOTRADER_API_SECRET`, `AUTOTRADER_ADVERTISER_ID` | live authentication, VRM vehicle lookup and Search endpoint; production capabilities require Auto Trader approval |
+| GOV.UK Fuel Finder | `FUEL_FINDER_CLIENT_ID`, `FUEL_FINDER_CLIENT_SECRET` | OAuth connector for current forecourt/fuel-price batches; national DESNZ fallback stays active |
 | DVSA Vehicle Recalls | `DVSA_RECALLS_CLIENT_ID`, `DVSA_RECALLS_CLIENT_SECRET`, `DVSA_RECALLS_API_KEY` | vehicle-level recall data after DVSA onboarding |
 | Vercel Cron security | `CRON_SECRET` | optional protection for the scheduled refresh endpoint |
 
@@ -44,6 +46,11 @@ MarketCheck is the quickest route to replacing the reviewed nearly-new price sna
 - `GET /api/live` — current live market snapshot, sources, grant status and integration health
 - `GET /api/used/search` — MarketCheck-backed UK used inventory search when `MARKETCHECK_API_KEY` is present
 - `GET /api/cron/refresh` — scheduled live-source health/refresh endpoint
+- `GET /api/health` — production health check across public feeds and optional provider status
+- `GET /api/integrations/autotrader/vehicle?vrm=AB12CDE` — Auto Trader vehicle lookup when licensed
+- `GET /api/integrations/autotrader/search?... ` — Auto Trader Search capability when licensed/approved
+- `GET /api/integrations/cap-hpi/vehicle?vrm=AB12CDE` — CAP HPI derivative, vehicle, checks, latest MOT, DVLA and product entitlements
+- `GET /api/integrations/fuel-finder?type=prices&batch=1` — GOV.UK Fuel Finder live price batch when OAuth credentials are present
 
 Example:
 
@@ -68,7 +75,8 @@ Example:
 - new vs nearly-new deal bands
 - multi-vehicle comparison
 - data-source monitor
-- actionable alerts for price thresholds, failed sources and missing critical integrations
+- vehicle-specific Euro NCAP and recall intelligence in comparisons
+- actionable alerts for price thresholds, model-year recalls, failed sources and missing critical integrations
 - responsive desktop/tablet/mobile UI
 
 ## Data integrity rules
@@ -110,6 +118,8 @@ Historical source refresh:
 npm run refresh:data
 ```
 
-## Production caveat
+## Production access and provider caveats
 
-The app is fully operational with its public/official live sources. Commercial used-car inventory and licensed residual values cannot be truthfully marked live until the relevant provider account/API credentials are supplied. The UI exposes that state explicitly rather than presenting research estimates as live commercial data.
+The app is fully operational with its public/official live sources. Commercial used-car inventory, Auto Trader data and licensed residual values cannot be truthfully marked live until the relevant provider account/API credentials and production entitlements are supplied. The UI exposes that state explicitly rather than presenting research estimates as live commercial data.
+
+The Vercel project is currently configured with Vercel Authentication covering the production domain. For a genuinely public launch, change **Project Settings → Deployment Protection → Vercel Authentication → Standard Protection**. This preserves protected preview deployments while leaving the production domain public. This is a Vercel account setting, not a code setting.
