@@ -51,7 +51,7 @@ export type Source = {
   quality: string;
   refreshHours: number;
   lastChecked: string;
-  status: "current" | "changed" | "failed" | "stale";
+  status: "current" | "changed" | "failed" | "stale" | "live" | "unconfigured";
   expectedPrice?: number;
   anchors?: string[];
   contentHash?: string;
@@ -71,4 +71,48 @@ export type BuyerProfile = {
   warrantyWeight: number;
   depreciationWeight: number;
   comfortWeight: number;
+};
+
+
+export type LiveVehicleObservation = {
+  vehicleId: string;
+  observedNewPrice?: number;
+  priceSource?: string;
+  priceCheckedAt?: string;
+  grantBand?: 1 | 2;
+  grantAmount?: number;
+  grantEligible?: boolean;
+  sourceStatus: "live" | "fallback" | "failed";
+};
+
+export type IntegrationStatus = {
+  id: string;
+  name: string;
+  status: "live" | "configured" | "unconfigured" | "failed";
+  detail: string;
+  requiresCredentials: boolean;
+};
+
+export type LiveSnapshot = {
+  generatedAt: string;
+  market: {
+    petrolPencePerLitre?: number;
+    dieselPencePerLitre?: number;
+    fuelCheckedAt?: string;
+    octopusOffPeakPence?: number;
+    octopusCheckedAt?: string;
+    vedStandardAnnual: number;
+    vedExpensiveSupplement: number;
+    vedZevThreshold: number;
+    vedOtherThreshold: number;
+    taxCheckedAt?: string;
+  };
+  vehicleObservations: LiveVehicleObservation[];
+  sources: Source[];
+  integrations: IntegrationStatus[];
+  diagnostics: {
+    liveSourceCount: number;
+    fallbackSourceCount: number;
+    failedSourceCount: number;
+  };
 };
