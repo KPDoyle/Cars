@@ -15,7 +15,7 @@
       "fairDealMax": 31500,
       "warrantyYears": 7,
       "warrantyMiles": 100000,
-      "batteryWarrantyYears": 7,
+      "batteryWarrantyYears": 8,
       "batteryWarrantyMiles": 100000,
       "batteryKwh": 81.4,
       "wltpMiles": 375,
@@ -99,7 +99,7 @@
       "nearlyNewPrice": 29995,
       "excellentDeal": 30000,
       "fairDealMax": 32500,
-      "warrantyYears": 5,
+      "warrantyYears": 3,
       "warrantyMiles": 100000,
       "batteryWarrantyYears": 8,
       "batteryWarrantyMiles": 100000,
@@ -125,7 +125,7 @@
       "taxAnnual": 195,
       "baseScore": 83.2,
       "verdict": "Excellent family and comfort choice, especially when bought after first-year depreciation.",
-      "biggestRisk": "Shorter principal warranty than the buyer benchmark.",
+      "biggestRisk": "Three-year principal vehicle warranty is materially below the buyer's 7-year benchmark.",
       "sourceIds": [
         "renault-scenic",
         "renault-warranty"
@@ -370,7 +370,7 @@
     {
       "id": "kia-warranty",
       "name": "Kia UK warranty",
-      "url": "https://www.kia.com/uk/owners/warranty/",
+      "url": "https://www.kia.com/uk/owners/insurance-and-warranty/",
       "type": "Warranty",
       "quality": "Primary",
       "refreshHours": 168,
@@ -444,12 +444,17 @@
     {
       "id": "renault-warranty",
       "name": "Renault UK warranty",
-      "url": "https://www.renault.co.uk/owners/warranty.html",
+      "url": "https://www.renault.co.uk/warranty.html",
       "type": "Warranty",
       "quality": "Primary",
       "refreshHours": 168,
       "lastChecked": "2026-08-28T12:00:00Z",
-      "status": "current"
+      "status": "current",
+      "anchors": [
+        "3 year",
+        "100,000",
+        "8 year"
+      ]
     },
     {
       "id": "skoda-elroq",
