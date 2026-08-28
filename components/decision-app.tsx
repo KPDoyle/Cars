@@ -123,14 +123,14 @@ function VehicleBadge({ powertrain }: { powertrain: Vehicle["powertrain"] }) {
 
 function publicListingSearch(vehicle: Vehicle, source: "autotrader" | "motors" | "cargurus" | "manufacturer") {
   const terms = `${vehicle.brand} ${vehicle.model} ${vehicle.trim} used UK`;
-  const site = source === "autotrader"
-    ? "site:autotrader.co.uk"
+  const query = source === "autotrader"
+    ? `site:autotrader.co.uk ${terms}`
     : source === "motors"
-      ? "site:motors.co.uk"
+      ? `site:motors.co.uk ${terms}`
       : source === "cargurus"
-        ? "site:cargurus.co.uk"
-        : `site:${vehicle.brand.toLowerCase().replaceAll(" ", "")}.co.uk`;
-  return `https://www.google.com/search?q=${encodeURIComponent(`${site} ${terms}`)}`;
+        ? `site:cargurus.co.uk ${terms}`
+        : `${vehicle.brand} approved used ${vehicle.model} UK official`;
+  return `https://www.google.com/search?q=${encodeURIComponent(query)}`;
 }
 
 function dealBand(vehicle: Vehicle, price: number) {
