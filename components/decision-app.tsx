@@ -10,6 +10,7 @@ import {
   ChevronRight,
   CircleDollarSign,
   Database,
+  ExternalLink,
   Gauge,
   GitCompareArrows,
   Info,
@@ -120,6 +121,24 @@ function VehicleBadge({ powertrain }: { powertrain: Vehicle["powertrain"] }) {
   return <span className={classNames("power-badge", powertrain === "BEV" ? "bev" : "phev")}>{powertrain}</span>;
 }
 
+function publicListingSearch(vehicle: Vehicle, source: "autotrader" | "motors" | "cargurus" | "manufacturer") {
+  const terms = `${vehicle.brand} ${vehicle.model} ${vehicle.trim} used UK`;
+  const site = source === "autotrader"
+    ? "site:autotrader.co.uk"
+    : source === "motors"
+      ? "site:motors.co.uk"
+      : source === "cargurus"
+        ? "site:cargurus.co.uk"
+        : `site:${vehicle.brand.toLowerCase().replaceAll(" ", "")}.co.uk`;
+  return `https://www.google.com/search?q=${encodeURIComponent(`${site} ${terms}`)}`;
+}
+
+function dealBand(vehicle: Vehicle, price: number) {
+  if (price <= vehicle.excellentDeal) return { label: "Excellent deal", className: "good" };
+  if (price <= vehicle.fairDealMax) return { label: "Fair price", className: "warn" };
+  return { label: "Above fair value", className: "risk" };
+}
+
 function RecommendationCard({
   vehicle,
   profile,
@@ -179,6 +198,9 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
     "toyota-chr-plus-design",
   ]);
   const [dealQuery, setDealQuery] = useState("");
+  const [manualDealVehicleId, setManualDealVehicleId] = useState("kia-ev3-air-long-range");
+  const [manualDealPrice, setManualDealPrice] = useState(28950);
+  const [manualDealMileage, setManualDealMileage] = useState(8000);
 
   const liveVehicles = useMemo(() => {
     const observationMap = new Map(live.vehicleObservations.map((item) => [item.vehicleId, item]));
@@ -210,6 +232,11 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
   const winnerTco = tco(winner, profile);
   const winnerExit = warrantyExit(winner, profile);
   const technologyWinner = personalisedScore(bevRanked[0], profile) >= personalisedScore(phevRanked[0], profile) ? "BEV" : "PHEV";
+  const manualDealVehicle = liveVehicles.find((vehicle) => vehicle.id === manualDealVehicleId) ?? liveVehicles[0];
+  const manualDealAssessment = dealBand(manualDealVehicle, manualDealPrice);
+  const manualDealModel = { ...manualDealVehicle, nearlyNewPrice: manualDealPrice };
+  const manualDealTco = tco(manualDealModel, { ...profile, purchaseMode: "nearly-new" });
+  const manualSaving = Math.max(0, manualDealVehicle.newPrice - manualDealPrice);
 
   const alerts = useMemo(() => {
     const items: Array<{ level: "info" | "good" | "warn"; title: string; body: string }> = [];
@@ -243,24 +270,6 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
         level: "warn",
         title: `${failed.length} source check${failed.length === 1 ? "" : "s"} need attention`,
         body: failed.map((source) => source.name).join(", "),
-      });
-    }
-
-    const usedFeed = live.integrations.find((item) => item.id === "marketcheck");
-    if (usedFeed?.status === "unconfigured") {
-      items.push({
-        level: "info",
-        title: "Live nearly-new inventory is ready to connect",
-        body: "Add MARKETCHECK_API_KEY in Vercel to replace snapshot used prices with current UK listings.",
-      });
-    }
-
-    const valuationFeed = live.integrations.find((item) => item.id === "cap-hpi");
-    if (valuationFeed?.status === "unconfigured") {
-      items.push({
-        level: "info",
-        title: "Licensed residual valuations are not connected",
-        body: "Add CAP HPI credentials to move residual-value forecasts from modelled estimates to licensed valuation data.",
       });
     }
 
@@ -321,9 +330,9 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
         </nav>
         <div className="sidebar-status">
           <div className="status-head"><Activity size={15} /><span>Research engine</span></div>
-          <strong>{live.diagnostics.liveSourceCount}/{sources.length} sources live</strong>
-          <p>Server-backed evidence refresh with official UK sources and validated manufacturer observations.</p>
-          <div className="status-row"><span className="dot live" /> Live engine active</div>
+          <strong>No API key required</strong>
+          <p>Public UK sources, reviewed benchmarks and manual deal analysis keep the core decision engine fully usable.</p>
+          <div className="status-row"><span className="dot live" /> Public-data mode active</div>
         </div>
       </aside>
 
@@ -480,7 +489,7 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
 
         {view === "deals" ? (
           <section className="page">
-            <PageTitle eyebrow="New vs nearly-new" title="Deal explorer" description="See where the first owner has already absorbed enough depreciation to make a nearly-new car compelling." />
+            <PageTitle eyebrow="New vs nearly-new" title="Deal explorer" description="Use the reviewed market benchmarks, search the public web for current listings, or enter any car you find and assess it instantly without an API subscription." />
             <div className="toolbar">
               <label className="search-box"><Search size={17} /><input value={dealQuery} onChange={(event) => setDealQuery(event.target.value)} placeholder="Search vehicle or brand" /></label>
               <div className="mode-toggle">
@@ -507,7 +516,49 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
                 </tbody>
               </table>
             </div>
-            <div className="callout"><TriangleAlert size={18} /><div><strong>Deal thresholds are evidence-led guide prices, not guaranteed valuations.</strong><p>The live architecture separates asking prices, observed market data and modelled residuals so the app can tighten these bands as richer valuation feeds are connected.</p></div></div>
+            <div className="manual-deal-card">
+              <div className="manual-deal-head">
+                <div>
+                  <p className="eyebrow">No-API listing checker</p>
+                  <h3>Found a car? Test the deal here</h3>
+                  <p>Enter the asking price and mileage from any dealer, classified advert or manufacturer used-car page.</p>
+                </div>
+                <span className={classNames("deal-grade", manualDealAssessment.className)}>{manualDealAssessment.label}</span>
+              </div>
+              <div className="manual-deal-form">
+                <label>
+                  <span>Vehicle</span>
+                  <select
+                    value={manualDealVehicleId}
+                    onChange={(event) => {
+                      const nextId = event.target.value;
+                      const nextVehicle = liveVehicles.find((vehicle) => vehicle.id === nextId);
+                      setManualDealVehicleId(nextId);
+                      if (nextVehicle) setManualDealPrice(nextVehicle.nearlyNewPrice);
+                    }}
+                  >
+                    {liveVehicles.map((vehicle) => <option key={vehicle.id} value={vehicle.id}>{vehicle.brand} {vehicle.model} · {vehicle.trim}</option>)}
+                  </select>
+                </label>
+                <label><span>Asking price</span><div className="input-prefix"><b>£</b><input type="number" min="10000" step="250" value={manualDealPrice} onChange={(event) => setManualDealPrice(Number(event.target.value) || 0)} /></div></label>
+                <label><span>Mileage</span><div className="input-suffix"><input type="number" min="0" step="500" value={manualDealMileage} onChange={(event) => setManualDealMileage(Number(event.target.value) || 0)} /><b>miles</b></div></label>
+              </div>
+              <div className="manual-deal-results">
+                <div><span>Saving vs current new</span><strong>{money(manualSaving)}</strong></div>
+                <div><span>Excellent threshold</span><strong>{money(manualDealVehicle.excellentDeal)}</strong></div>
+                <div><span>Maximum fair price</span><strong>{money(manualDealVehicle.fairDealMax)}</strong></div>
+                <div><span>{profile.ownershipYears}yr TCO at this price</span><strong>{money(manualDealTco.total)}</strong></div>
+              </div>
+              <div className="public-searches">
+                <div><strong>Find current examples</strong><span>Public web searches — no API account</span></div>
+                <a href={publicListingSearch(manualDealVehicle, "autotrader")} target="_blank" rel="noreferrer">Auto Trader <ExternalLink size={13} /></a>
+                <a href={publicListingSearch(manualDealVehicle, "motors")} target="_blank" rel="noreferrer">Motors <ExternalLink size={13} /></a>
+                <a href={publicListingSearch(manualDealVehicle, "cargurus")} target="_blank" rel="noreferrer">CarGurus <ExternalLink size={13} /></a>
+                <a href={publicListingSearch(manualDealVehicle, "manufacturer")} target="_blank" rel="noreferrer">Manufacturer used <ExternalLink size={13} /></a>
+              </div>
+              <p className="manual-deal-note">Mileage is recorded for your assessment and should be checked against age, warranty mileage and condition. The TCO uses your entered purchase price plus the study's transparent running-cost and residual assumptions.</p>
+            </div>
+            <div className="callout"><TriangleAlert size={18} /><div><strong>No commercial data subscription is required for the core decision.</strong><p>Current new-car facts come from public/official sources. Nearly-new benchmarks remain reviewed guide values until you replace them with the asking price of a real car using the checker above.</p></div></div>
           </section>
         ) : null}
 
@@ -556,7 +607,7 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
 
         {view === "data" ? (
           <section className="page">
-            <PageTitle eyebrow="Continuous evidence layer" title="Data monitor" description="Every material fact is dated and source-traceable. Public price, grant, energy, tax, Euro NCAP and DVSA recall feeds refresh server-side; licensed market feeds activate when provider credentials are supplied." />
+            <PageTitle eyebrow="Continuous evidence layer" title="Data monitor" description="The production decision engine runs on public and official sources without paid API credentials. Commercial feeds are optional enhancements rather than dependencies." />
             <div className="monitor-summary">
               <div><span className="mini-icon"><Database size={19} /></span><div><span>Sources configured</span><strong>{sources.length}</strong></div></div>
               <div><span className="mini-icon"><CheckCircle2 size={19} /></span><div><span>Live / current</span><strong>{live.diagnostics.liveSourceCount}</strong></div></div>
@@ -565,15 +616,19 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
               <div><span className="mini-icon"><ShieldCheck size={19} /></span><div><span>Euro NCAP live</span><strong>{live.safety.filter((item) => item.status === "live").length}/{live.safety.length}</strong></div></div>
               <div><span className="mini-icon"><TriangleAlert size={19} /></span><div><span>Recall checks live</span><strong>{live.recalls.filter((item) => item.status === "live").length}/{live.recalls.length}</strong></div></div>
             </div>
+            <div className="no-api-banner"><CheckCircle2 size={20} /><div><strong>Core app: fully operational without commercial APIs</strong><p>Pricing checks, grants, tax, electricity, fuel, safety, recalls, rankings, TCO, comparisons and manual deal assessment all work in public-data mode.</p></div></div>
             <div className="integration-grid">
-              {live.integrations.map((integration) => (
+              {live.integrations.filter((integration) => !integration.requiresCredentials).map((integration) => (
                 <article className="integration-card" key={integration.id}>
                   <div className="integration-head"><strong>{integration.name}</strong><span className={classNames("status-pill", integration.status)}><span className={classNames("dot", integration.status === "live" && "live")} />{integration.status}</span></div>
                   <p>{integration.detail}</p>
-                  {integration.requiresCredentials && integration.status === "unconfigured" ? <small>Credentials / provider approval required</small> : null}
                 </article>
               ))}
             </div>
+            <details className="optional-feeds">
+              <summary>Optional commercial data enhancements</summary>
+              <p>MarketCheck, CAP HPI, Auto Trader Connect and Fuel Finder can enrich the app later, but none is required for the site to function.</p>
+            </details>
             <div className="table-wrap source-wrap">
               <table className="source-table">
                 <thead><tr><th>Source</th><th>Category</th><th>Quality</th><th>Refresh</th><th>Last checked</th><th>Status</th></tr></thead>
@@ -585,7 +640,7 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
               <div className="pipeline-steps">
                 {["Fetch authorised/public source", "Hash original page", "Extract price candidates", "Compare previous observation", "Flag material change", "Commit refreshed dataset"].map((step, index) => <div key={step}><span>{index + 1}</span><p>{step}</p></div>)}
               </div>
-              <p className="pipeline-note">Ambiguous webpage values are never silently promoted into the recommendation. Public authoritative feeds publish when validation succeeds. Licensed inventory and valuation providers remain credential-gated and will automatically enrich the same model when their production keys are present.</p>
+              <p className="pipeline-note">Ambiguous webpage values are never silently promoted into the recommendation. Public authoritative sources refresh automatically, reviewed fallback values remain visible, and a real listing can always be assessed manually without any external API.</p>
             </div>
           </section>
         ) : null}
