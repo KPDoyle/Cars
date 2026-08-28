@@ -232,6 +232,13 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
   const winnerTco = tco(winner, profile);
   const winnerExit = warrantyExit(winner, profile);
   const technologyWinner = personalisedScore(bevRanked[0], profile) >= personalisedScore(phevRanked[0], profile) ? "BEV" : "PHEV";
+  const studyProfile = useMemo<BuyerProfile>(() => ({
+    ...defaultProfile,
+    electricityPence: live.market.octopusOffPeakPence ?? defaultProfile.electricityPence,
+    petrolPencePerLitre: live.market.petrolPencePerLitre ?? defaultProfile.petrolPencePerLitre,
+  }), [live.market.octopusOffPeakPence, live.market.petrolPencePerLitre]);
+  const profileChangeCount = (Object.keys(profile) as Array<keyof BuyerProfile>)
+    .filter((key) => profile[key] !== studyProfile[key]).length;
   const manualDealVehicle = liveVehicles.find((vehicle) => vehicle.id === manualDealVehicleId) ?? liveVehicles[0];
   const manualDealAssessment = dealBand(manualDealVehicle, manualDealPrice);
   const manualDealModel = { ...manualDealVehicle, nearlyNewPrice: manualDealPrice };
@@ -588,7 +595,7 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
                 <RangeField label="Warranty importance" value={profile.warrantyWeight} min={5} max={25} step={1} suffix="%" onChange={(value) => changeProfile("warrantyWeight", value)} />
                 <RangeField label="Depreciation importance" value={profile.depreciationWeight} min={10} max={30} step={1} suffix="%" onChange={(value) => changeProfile("depreciationWeight", value)} />
                 <RangeField label="Comfort importance" value={profile.comfortWeight} min={5} max={20} step={1} suffix="%" onChange={(value) => changeProfile("comfortWeight", value)} />
-                <button className="secondary-button full" onClick={() => setProfile(defaultProfile)}><RefreshCcw size={16} /> Reset to study profile</button>
+                <button className="secondary-button full" onClick={() => setProfile(studyProfile)}><RefreshCcw size={16} /> Reset to study profile</button>
               </div>
               <div className="live-result-card">
                 <div>
@@ -596,6 +603,9 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
                   <VehicleBadge powertrain={winner.powertrain} />
                   <h2>{winner.brand} {winner.model}</h2>
                   <p>{winner.trim}</p>
+                  <span className={classNames("profile-active", profileChangeCount > 0 && "changed")}>
+                    {profileChangeCount > 0 ? `${profileChangeCount} profile setting${profileChangeCount === 1 ? "" : "s"} changed` : "Study profile active"}
+                  </span>
                 </div>
                 <div className="live-score"><strong>{personalisedScore(winner, profile).toFixed(1)}</strong><span>/100 fit</span></div>
                 <div className="metric-grid compact"><div><span>Purchase</span><strong>{money(purchasePrice(winner, profile))}</strong></div><div><span>TCO</span><strong>{money(winnerTco.total)}</strong></div><div><span>Energy</span><strong>{money(annualEnergyCost(winner, profile).total)}/yr</strong></div><div><span>Exit</span><strong>{winnerExit.yearsFromPurchase.toFixed(1)} yrs</strong></div></div>
