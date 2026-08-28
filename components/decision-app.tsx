@@ -191,6 +191,7 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
       return {
         ...vehicle,
         newPrice: observedPrice ?? vehicle.newPrice,
+        nearlyNewPrice: observation?.observedUsedMedian ?? vehicle.nearlyNewPrice,
         taxAnnual: annualTax,
       };
     });
@@ -478,7 +479,7 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
                       <td><strong>{vehicle.brand} {vehicle.model}</strong><span>{vehicle.trim}</span></td>
                       <td><VehicleBadge powertrain={vehicle.powertrain} /></td>
                       <td>{money(vehicle.newPrice)}</td>
-                      <td><strong>{money(vehicle.nearlyNewPrice)}</strong></td>
+                      <td><strong>{money(vehicle.nearlyNewPrice)}</strong><span>{live.vehicleObservations.find((item) => item.vehicleId === vehicle.id)?.observedUsedMedian ? "Live market median" : "Research snapshot"}</span></td>
                       <td className="positive">{money(vehicle.newPrice - vehicle.nearlyNewPrice)}<span>{Math.round(((vehicle.newPrice - vehicle.nearlyNewPrice) / vehicle.newPrice) * 100)}%</span></td>
                       <td>{money(vehicle.excellentDeal)}</td>
                       <td>{money(vehicle.fairDealMax)}</td>
