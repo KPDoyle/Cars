@@ -323,7 +323,7 @@ async function getTaxData() {
 
 const MARKETCHECK_MODEL: Record<string, string> = {
   "kia-ev3-air-long-range": "EV3",
-  "toyota-chr-plus-icon": "C-HR+",
+  "toyota-chr-plus-design": "C-HR+",
   "renault-scenic-techno-lr": "Scenic",
   "skoda-elroq-85-se": "Elroq",
   "hyundai-kona-electric-65": "Kona",
