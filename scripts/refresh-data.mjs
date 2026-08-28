@@ -3,7 +3,14 @@ import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
 const DATA_PATH = resolve(process.cwd(), "data/vehicle-data.json");
+const HISTORY_PATH = resolve(process.cwd(), "data/price-history.json");
 const data = JSON.parse(await readFile(DATA_PATH, "utf8"));
+let priceHistory = [];
+try {
+  priceHistory = JSON.parse(await readFile(HISTORY_PATH, "utf8"));
+} catch {
+  priceHistory = [];
+}
 const now = new Date().toISOString();
 
 function hashContent(value) {
@@ -23,7 +30,7 @@ function htmlToText(html) {
 }
 
 function priceCandidates(text) {
-  return [...text.matchAll(/£\s?([1-9][0-9]{1,2}(?:,[0-9]{3})+)/g)]
+  return [...text.matchAll(/£\s?((?:[1-9][0-9]{0,2}(?:,[0-9]{3})+)|(?:[1-9][0-9]{4,5}))/g)]
     .map((match) => Number(match[1].replaceAll(",", "")))
     .filter((value) => value >= 15000 && value <= 120000);
 }
@@ -66,8 +73,23 @@ for (const source of data.sources) {
     if (changed) changedSources += 1;
 
     if (observedPrice) {
+      const previousObserved = source.observedPrice;
       source.observedPrice = observedPrice;
       source.observedAt = now;
+
+      const last = priceHistory
+        .filter((entry) => entry.sourceId === source.id)
+        .toSorted((a, b) => String(b.checkedAt).localeCompare(String(a.checkedAt)))[0];
+      if (!last || last.price !== observedPrice) {
+        priceHistory.push({
+          checkedAt: now,
+          sourceId: source.id,
+          sourceName: source.name,
+          price: observedPrice,
+          previousPrice: previousObserved,
+          url: source.url,
+        });
+      }
     }
   } catch (error) {
     source.lastChecked = now;
@@ -79,5 +101,8 @@ for (const source of data.sources) {
 
 data.monitor = { lastRun: now, changedSources, failedSources };
 data.asOf = data.asOf || now.slice(0, 10);
-await writeFile(DATA_PATH, `${JSON.stringify(data, null, 2)}\n`, "utf8");
+await Promise.all([
+  writeFile(DATA_PATH, `${JSON.stringify(data, null, 2)}\n`, "utf8"),
+  writeFile(HISTORY_PATH, `${JSON.stringify(priceHistory.slice(-1000), null, 2)}\n`, "utf8"),
+]);
 console.log(`Source monitor complete: ${changedSources} changed, ${failedSources} failed.`);
