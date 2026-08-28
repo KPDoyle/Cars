@@ -556,7 +556,7 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
                 <a href={publicListingSearch(manualDealVehicle, "cargurus")} target="_blank" rel="noreferrer">CarGurus <ExternalLink size={13} /></a>
                 <a href={publicListingSearch(manualDealVehicle, "manufacturer")} target="_blank" rel="noreferrer">Manufacturer used <ExternalLink size={13} /></a>
               </div>
-              <p className="manual-deal-note">Mileage is recorded for your assessment and should be checked against age, warranty mileage and condition. The TCO uses your entered purchase price plus the study's transparent running-cost and residual assumptions.</p>
+              <p className="manual-deal-note">Mileage is recorded for your assessment and should be checked against age, warranty mileage and condition. The TCO uses your entered purchase price plus the transparent study running-cost and residual assumptions.</p>
             </div>
             <div className="callout"><TriangleAlert size={18} /><div><strong>No commercial data subscription is required for the core decision.</strong><p>Current new-car facts come from public/official sources. Nearly-new benchmarks remain reviewed guide values until you replace them with the asking price of a real car using the checker above.</p></div></div>
           </section>
