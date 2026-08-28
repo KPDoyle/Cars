@@ -577,6 +577,28 @@ async function integrationStatuses(): Promise<IntegrationStatus[]> {
   const dvsaConfigured = Boolean(process.env.DVSA_RECALLS_CLIENT_ID && process.env.DVSA_RECALLS_CLIENT_SECRET && process.env.DVSA_RECALLS_API_KEY);
   const marketCheckConfigured = Boolean(process.env.MARKETCHECK_API_KEY);
 
+  let marketCheckStatus: IntegrationStatus["status"] = marketCheckConfigured ? "configured" : "unconfigured";
+  let marketCheckDetail = marketCheckConfigured
+    ? "API key present; connection health check pending."
+    : "Add a MarketCheck API key to enable live UK nearly-new listings.";
+  if (marketCheckConfigured) {
+    try {
+      const healthUrl = new URL("https://api.marketcheck.com/v2/search/car/uk/active");
+      healthUrl.searchParams.set("api_key", process.env.MARKETCHECK_API_KEY!);
+      healthUrl.searchParams.set("rows", "0");
+      healthUrl.searchParams.set("make", "Kia");
+      healthUrl.searchParams.set("model", "EV3");
+      const response = await fetch(healthUrl, { headers: { accept: "application/json", "user-agent": USER_AGENT }, cache: "no-store" });
+      marketCheckStatus = response.ok ? "live" : "failed";
+      marketCheckDetail = response.ok
+        ? "Connected to live UK active inventory; shortlist used-price statistics are enabled."
+        : `MarketCheck health check failed with HTTP ${response.status}.`;
+    } catch {
+      marketCheckStatus = "failed";
+      marketCheckDetail = "MarketCheck connection health check failed.";
+    }
+  }
+
   let capStatus: IntegrationStatus["status"] = capConfigured ? "configured" : "unconfigured";
   let capDetail = capConfigured ? "Credentials present; token health check pending." : "Add CAP HPI OAuth credentials to enable licensed current/future valuations.";
   if (capConfigured) {
@@ -632,7 +654,7 @@ async function integrationStatuses(): Promise<IntegrationStatus[]> {
     { id: "fuel", name: "DESNZ weekly road fuel prices", status: "live", detail: "Latest official UK petrol/diesel CSV is read automatically.", requiresCredentials: false },
     { id: "euro-ncap", name: "Euro NCAP vehicle safety", status: "live", detail: "Vehicle-specific Euro NCAP pages are checked with protocol year and expiry context.", requiresCredentials: false },
     { id: "public-recalls", name: "DVSA / GOV.UK public recalls", status: "live", detail: "Model-year recall history uses the public DVSA service; VIN-level outstanding status remains a purchase-time check.", requiresCredentials: false },
-    { id: "marketcheck", name: "MarketCheck UK live inventory", status: marketCheckConfigured ? "configured" : "unconfigured", detail: marketCheckConfigured ? "API key present; live UK inventory endpoint enabled." : "Add a MarketCheck API key to enable live UK nearly-new listings immediately.", requiresCredentials: true },
+    { id: "marketcheck", name: "MarketCheck UK live inventory", status: marketCheckStatus, detail: marketCheckDetail, requiresCredentials: true },
     { id: "cap-hpi", name: "CAP HPI valuations", status: capStatus, detail: capDetail, requiresCredentials: true },
     { id: "autotrader", name: "Auto Trader Connect", status: autoStatus, detail: autoDetail, requiresCredentials: true },
     { id: "fuel-finder", name: "GOV.UK Fuel Finder API", status: fuelFinderConfigured ? "configured" : "unconfigured", detail: fuelFinderConfigured ? "Credentials present; use for local forecourt prices." : "OAuth credentials required for near-real-time local forecourt prices; weekly UK average remains live without credentials.", requiresCredentials: true },
