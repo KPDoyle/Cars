@@ -166,6 +166,7 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
   const [view, setView] = useState<View>("dashboard");
   const [live, setLive] = useState<LiveSnapshot>(initialLive);
   const [refreshing, setRefreshing] = useState(false);
+  const [alertsOpen, setAlertsOpen] = useState(false);
   const [profile, setProfile] = useState<BuyerProfile>(() => ({
     ...defaultProfile,
     electricityPence: initialLive.market.octopusOffPeakPence ?? defaultProfile.electricityPence,
@@ -206,6 +207,58 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
   const winnerTco = tco(winner, profile);
   const winnerExit = warrantyExit(winner, profile);
   const technologyWinner = personalisedScore(bevRanked[0], profile) >= personalisedScore(phevRanked[0], profile) ? "BEV" : "PHEV";
+
+  const alerts = useMemo(() => {
+    const items: Array<{ level: "info" | "good" | "warn"; title: string; body: string }> = [];
+    const observations = new Map(live.vehicleObservations.map((item) => [item.vehicleId, item]));
+
+    for (const vehicle of liveVehicles) {
+      const observation = observations.get(vehicle.id);
+      if (observation?.observedNewPrice && observation.observedNewPrice <= vehicle.excellentDeal) {
+        items.push({
+          level: "good",
+          title: `${vehicle.brand} ${vehicle.model} has reached the excellent-deal band`,
+          body: `Observed manufacturer price ${money(observation.observedNewPrice)} versus excellent-deal threshold ${money(vehicle.excellentDeal)}.`,
+        });
+      }
+    }
+
+    const failed = live.sources.filter((source) => source.status === "failed");
+    if (failed.length) {
+      items.push({
+        level: "warn",
+        title: `${failed.length} source check${failed.length === 1 ? "" : "s"} need attention`,
+        body: failed.map((source) => source.name).join(", "),
+      });
+    }
+
+    const usedFeed = live.integrations.find((item) => item.id === "marketcheck");
+    if (usedFeed?.status === "unconfigured") {
+      items.push({
+        level: "info",
+        title: "Live nearly-new inventory is ready to connect",
+        body: "Add MARKETCHECK_API_KEY in Vercel to replace snapshot used prices with current UK listings.",
+      });
+    }
+
+    const valuationFeed = live.integrations.find((item) => item.id === "cap-hpi");
+    if (valuationFeed?.status === "unconfigured") {
+      items.push({
+        level: "info",
+        title: "Licensed residual valuations are not connected",
+        body: "Add CAP HPI credentials to move residual-value forecasts from modelled estimates to licensed valuation data.",
+      });
+    }
+
+    if (!items.length) {
+      items.push({
+        level: "good",
+        title: "No material data alerts",
+        body: "Connected live sources are healthy and no monitored price has crossed an alert threshold.",
+      });
+    }
+    return items.slice(0, 8);
+  }, [live, liveVehicles]);
 
   const changeProfile = <K extends keyof BuyerProfile>(key: K, value: BuyerProfile[K]) => {
     setProfile((current) => ({ ...current, [key]: value }));
@@ -272,7 +325,23 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
           <div className="topbar-actions">
             <span className="freshness"><span className="dot live" /> Live: {new Date(live.generatedAt).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
             <button className="icon-button" aria-label="Refresh live data" onClick={refreshLive} disabled={refreshing}><RefreshCcw size={18} className={refreshing ? "spin" : ""} /></button>
-            <button className="icon-button" aria-label="Alerts"><Bell size={18} /></button>
+            <button className={classNames("icon-button", alertsOpen && "active")} aria-label="Alerts" onClick={() => setAlertsOpen((open) => !open)}>
+              <Bell size={18} />
+              {alerts.length ? <span className="alert-count">{alerts.length}</span> : null}
+            </button>
+            {alertsOpen ? (
+              <div className="alerts-panel">
+                <div className="alerts-head"><div><span>Decision alerts</span><strong>{alerts.length} active</strong></div><button onClick={() => setAlertsOpen(false)} aria-label="Close alerts"><X size={16} /></button></div>
+                <div className="alerts-list">
+                  {alerts.map((alert, index) => (
+                    <article className={classNames("alert-item", alert.level)} key={`${alert.title}-${index}`}>
+                      <span className="alert-dot" />
+                      <div><strong>{alert.title}</strong><p>{alert.body}</p></div>
+                    </article>
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </div>
         </header>
 
