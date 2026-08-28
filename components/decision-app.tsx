@@ -239,6 +239,9 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
   }), [live.market.octopusOffPeakPence, live.market.petrolPencePerLitre]);
   const profileChangeCount = (Object.keys(profile) as Array<keyof BuyerProfile>)
     .filter((key) => profile[key] !== studyProfile[key]).length;
+  const currentWinnerScore = personalisedScore(winner, profile);
+  const studyScoreForCurrentWinner = personalisedScore(winner, studyProfile);
+  const scoreDeltaFromStudy = currentWinnerScore - studyScoreForCurrentWinner;
   const manualDealVehicle = liveVehicles.find((vehicle) => vehicle.id === manualDealVehicleId) ?? liveVehicles[0];
   const manualDealAssessment = dealBand(manualDealVehicle, manualDealPrice);
   const manualDealModel = { ...manualDealVehicle, nearlyNewPrice: manualDealPrice };
@@ -607,7 +610,13 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
                     {profileChangeCount > 0 ? `${profileChangeCount} profile setting${profileChangeCount === 1 ? "" : "s"} changed` : "Study profile active"}
                   </span>
                 </div>
-                <div className="live-score"><strong>{personalisedScore(winner, profile).toFixed(1)}</strong><span>/100 fit</span></div>
+                <div className="live-score">
+                  <strong>{currentWinnerScore.toFixed(1)}</strong>
+                  <span>/100 fit</span>
+                  <small className={classNames("score-delta", scoreDeltaFromStudy > 0.05 ? "up" : scoreDeltaFromStudy < -0.05 ? "down" : "")}>
+                    {Math.abs(scoreDeltaFromStudy) < 0.05 ? "Study baseline" : `${scoreDeltaFromStudy > 0 ? "+" : ""}${scoreDeltaFromStudy.toFixed(1)} vs study`}
+                  </small>
+                </div>
                 <div className="metric-grid compact"><div><span>Purchase</span><strong>{money(purchasePrice(winner, profile))}</strong></div><div><span>TCO</span><strong>{money(winnerTco.total)}</strong></div><div><span>Energy</span><strong>{money(annualEnergyCost(winner, profile).total)}/yr</strong></div><div><span>Exit</span><strong>{winnerExit.yearsFromPurchase.toFixed(1)} yrs</strong></div></div>
                 <button className="primary-button" onClick={() => changeView("dashboard")}>View full decision <ChevronRight size={16} /></button>
               </div>
