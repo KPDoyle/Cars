@@ -548,12 +548,17 @@
     {
       "id": "mg-warranty",
       "name": "MG UK warranty",
-      "url": "https://www.mg.co.uk/owners/warranty",
+      "url": "https://www.invictamotors.co.uk/jaecoo/news/electric-car-battery-guide-uk",
       "type": "Warranty",
-      "quality": "Primary",
+      "quality": "Dealer",
       "refreshHours": 168,
       "lastChecked": "2026-08-28T12:00:00Z",
-      "status": "current"
+      "status": "current",
+      "anchors": [
+        "MG",
+        "7 years",
+        "80,000 miles"
+      ]
     },
     {
       "id": "gov-ev-grant",
