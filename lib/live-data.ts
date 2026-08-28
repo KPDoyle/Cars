@@ -139,7 +139,18 @@ async function probeReferenceSources(): Promise<Source[]> {
       try {
         const html = await fetchText(source.url, Math.max(1800, source.refreshHours * 3600));
         const text = htmlToText(html);
-        const anchors = source.anchors ?? [];
+        const linkedVehicle = source.type === "Warranty"
+          ? VEHICLES.find((vehicle) => vehicle.sourceIds.includes(source.id))
+          : undefined;
+        const generatedWarrantyAnchors = linkedVehicle
+          ? [
+              `${linkedVehicle.warrantyYears} year`,
+              ...(linkedVehicle.warrantyMiles >= 900000
+                ? ["unlimited"]
+                : [linkedVehicle.warrantyMiles.toLocaleString("en-GB")]),
+            ]
+          : [];
+        const anchors = source.anchors?.length ? source.anchors : generatedWarrantyAnchors;
         const anchorsPresent = anchors.length === 0 || anchors.every((anchor) => normalize(text).includes(normalize(anchor)));
         return {
           ...source,
