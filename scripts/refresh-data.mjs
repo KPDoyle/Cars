@@ -30,22 +30,12 @@ function priceCandidates(text) {
 
 function extractObservedPrice(text, source) {
   if (!source.expectedPrice) return undefined;
-  const anchors = source.anchors ?? [];
-  let scope = text;
-
-  for (const anchor of anchors) {
-    const position = text.toLowerCase().indexOf(anchor.toLowerCase());
-    if (position >= 0) {
-      scope = text.slice(Math.max(0, position - 800), position + 2200);
-      break;
-    }
-  }
-
-  const prices = priceCandidates(scope);
-  if (!prices.length) return undefined;
-  const best = prices.toSorted((a, b) => Math.abs(a - source.expectedPrice) - Math.abs(b - source.expectedPrice))[0];
-  const variance = Math.abs(best - source.expectedPrice) / source.expectedPrice;
-  return variance <= 0.25 ? best : undefined;
+  const expected = source.expectedPrice;
+  const candidates = priceCandidates(text);
+  if (!candidates.length) return undefined;
+  const best = candidates.toSorted((a, b) => Math.abs(a - expected) - Math.abs(b - expected))[0];
+  const variance = Math.abs(best - expected) / expected;
+  return variance <= 0.15 ? best : undefined;
 }
 
 let changedSources = 0;
