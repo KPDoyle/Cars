@@ -48,4 +48,8 @@ jobs:
           }
           console.log('Live smoke test passed:', Object.fromEntries(checks));
           console.log('Diagnostics:', data.diagnostics);
+          console.log('Fallback sources:', data.sources.filter((source) => source.status !== 'live' && source.status !== 'failed').map((source) => ({ id: source.id, status: source.status })));
+          console.log('Failed sources:', data.sources.filter((source) => source.status === 'failed').map((source) => source.id));
+          console.log('Provider integrations:', data.integrations.map((item) => ({ id: item.id, status: item.status })));
+          console.log('Vehicle feed states:', data.vehicleObservations.map((item) => ({ vehicleId: item.vehicleId, sourceStatus: item.sourceStatus, newPrice: item.observedNewPrice, usedMedian: item.observedUsedMedian })));
           NODE
