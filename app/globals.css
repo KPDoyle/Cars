@@ -581,3 +581,32 @@ td.positive span { display: block; font-size: 8px; color: #73a992; }
 }
 .score-delta.up { color: #a8e6c9; }
 .score-delta.down { color: #f2c28a; }
+
+
+.profile-ranking {
+  grid-column: 1 / -1;
+  margin-top: 2px;
+  border-top: 1px solid rgba(255,255,255,.11);
+  padding-top: 12px;
+}
+.profile-ranking-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: baseline;
+  margin-bottom: 7px;
+}
+.profile-ranking-head span { color: white; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; }
+.profile-ranking-head small { color: #91a7d1; font-size: 8px; }
+.profile-ranking-row {
+  display: grid;
+  grid-template-columns: 24px 1fr auto;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 0;
+  border-top: 1px solid rgba(255,255,255,.07);
+}
+.profile-ranking-row > span { color: #91a7d1; font-size: 9px; font-weight: 800; }
+.profile-ranking-row div strong { display: block; color: white; font-size: 9px; }
+.profile-ranking-row div small { display: block; color: #91a7d1; font-size: 8px; margin-top: 1px; }
+.profile-ranking-row > b { font-size: 10px; color: #cfe0ff; }
