@@ -52,24 +52,32 @@ function extractPrice(text: string, expected?: number, anchors: string[] = []) {
   if (!expected) return undefined;
 
   const scopes: string[] = [];
-  const normalized = normalize(text);
+  const lower = text.toLowerCase();
   for (const anchor of anchors) {
-    const target = normalize(anchor);
-    let from = 0;
-    while (target) {
-      const idx = normalized.indexOf(target, from);
-      if (idx < 0) break;
-      scopes.push(text.slice(Math.max(0, idx - 1400), idx + 3500));
-      from = idx + target.length;
-      if (scopes.length >= 12) break;
+    const candidates = new Set([
+      anchor.toLowerCase().trim(),
+      ...normalize(anchor).split(" ").filter((part) => part.length >= 3),
+    ]);
+
+    for (const candidate of candidates) {
+      let from = 0;
+      while (candidate) {
+        const idx = lower.indexOf(candidate, from);
+        if (idx < 0) break;
+        scopes.push(text.slice(Math.max(0, idx - 1600), idx + 4200));
+        from = idx + candidate.length;
+        if (scopes.length >= 16) break;
+      }
+      if (scopes.length >= 16) break;
     }
-    if (scopes.length >= 12) break;
+    if (scopes.length >= 16) break;
   }
   scopes.push(text);
 
   const ranked: Array<{ price: number; scoped: boolean }> = [];
+  const pricePattern = /£\s?((?:[1-9][0-9]{0,2}(?:,[0-9]{3})+)|(?:[1-9][0-9]{4,5}))/g;
   scopes.forEach((scope, index) => {
-    for (const match of scope.matchAll(/£\s?([1-9][0-9]{1,2}(?:,[0-9]{3})+)/g)) {
+    for (const match of scope.matchAll(pricePattern)) {
       const price = Number(match[1].replaceAll(",", ""));
       if (price >= 15000 && price <= 120000) ranked.push({ price, scoped: index < scopes.length - 1 });
     }
@@ -77,9 +85,9 @@ function extractPrice(text: string, expected?: number, anchors: string[] = []) {
 
   if (!ranked.length) return undefined;
   const closest = ranked.toSorted((a, b) => {
-    const distance = Math.abs(a.price - expected) - Math.abs(b.price - expected);
-    if (distance !== 0) return distance;
-    return Number(b.scoped) - Number(a.scoped);
+    const aAdjusted = Math.abs(a.price - expected) - (a.scoped ? expected * 0.015 : 0);
+    const bAdjusted = Math.abs(b.price - expected) - (b.scoped ? expected * 0.015 : 0);
+    return aAdjusted - bAdjusted;
   })[0]?.price;
 
   return closest && Math.abs(closest - expected) / expected <= 0.15 ? closest : undefined;
