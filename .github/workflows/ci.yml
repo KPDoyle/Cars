@@ -16,3 +16,36 @@ jobs:
       - run: npm install --no-audit --no-fund
       - run: npm run lint
       - run: npm run build
+      - name: Runtime live-data smoke test
+        run: |
+          npm run start > /tmp/carwise-next.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID || true' EXIT
+          for i in {1..30}; do
+            if curl -fsS http://127.0.0.1:3000/api/live -o /tmp/live.json; then
+              break
+            fi
+            sleep 2
+          done
+          node - <<'NODE'
+          const fs = require('fs');
+          const data = JSON.parse(fs.readFileSync('/tmp/live.json', 'utf8'));
+          const checks = [
+            ['generatedAt', Boolean(data.generatedAt)],
+            ['vehicle observations', Array.isArray(data.vehicleObservations) && data.vehicleObservations.length >= 8],
+            ['sources', Array.isArray(data.sources) && data.sources.length > 10],
+            ['integrations', Array.isArray(data.integrations) && data.integrations.length > 5],
+            ['safety', Array.isArray(data.safety) && data.safety.length >= 8],
+            ['recalls', Array.isArray(data.recalls) && data.recalls.length >= 8],
+            ['petrol price', Number(data.market?.petrolPencePerLitre) > 0],
+            ['Octopus rate', Number(data.market?.octopusOffPeakPence) > 0],
+            ['VED', Number(data.market?.vedStandardAnnual) > 0],
+          ];
+          const failed = checks.filter(([, ok]) => !ok);
+          if (failed.length) {
+            console.error('Live smoke test failed:', failed.map(([name]) => name).join(', '));
+            process.exit(1);
+          }
+          console.log('Live smoke test passed:', Object.fromEntries(checks));
+          console.log('Diagnostics:', data.diagnostics);
+          NODE
