@@ -40,25 +40,28 @@
       "baseScore": 88.8,
       "verdict": "Best overall fit: strong warranty, sensible size, low energy cost and excellent nearly-new value.",
       "biggestRisk": "Further EV discounting could compress residual values.",
-      "sourceIds": ["kia-ev3-price", "kia-warranty"]
+      "sourceIds": [
+        "kia-ev3-price",
+        "kia-warranty"
+      ]
     },
     {
-      "id": "toyota-chr-plus-icon",
+      "id": "toyota-chr-plus-design",
       "brand": "Toyota",
       "model": "C-HR+",
-      "trim": "Icon 77 kWh",
+      "trim": "Design 77 kWh",
       "powertrain": "BEV",
       "segment": "Medium SUV",
-      "newPrice": 35995,
+      "newPrice": 36150,
       "nearlyNewPrice": 33995,
-      "excellentDeal": 33500,
-      "fairDealMax": 35500,
+      "excellentDeal": 34500,
+      "fairDealMax": 36500,
       "warrantyYears": 10,
       "warrantyMiles": 100000,
       "batteryWarrantyYears": 10,
       "batteryWarrantyMiles": 100000,
       "batteryKwh": 77,
-      "wltpMiles": 372,
+      "wltpMiles": 376,
       "realWorldElectricMiles": 305,
       "winterElectricMiles": 245,
       "efficiencyMiPerKwh": 3.5,
@@ -78,9 +81,12 @@
       "serviceAnnual": 275,
       "taxAnnual": 195,
       "baseScore": 85,
-      "verdict": "Very strong warranty-led alternative with Toyota support and excellent everyday range.",
+      "verdict": "Strong warranty-led long-range alternative with Toyota support; the 77 kWh Design is the correct current long-range trim.",
       "biggestRisk": "New model means residual evidence is still developing.",
-      "sourceIds": ["toyota-chrplus", "toyota-warranty"]
+      "sourceIds": [
+        "toyota-chrplus",
+        "toyota-warranty"
+      ]
     },
     {
       "id": "renault-scenic-techno-lr",
@@ -120,7 +126,10 @@
       "baseScore": 83.2,
       "verdict": "Excellent family and comfort choice, especially when bought after first-year depreciation.",
       "biggestRisk": "Shorter principal warranty than the buyer benchmark.",
-      "sourceIds": ["renault-scenic", "renault-warranty"]
+      "sourceIds": [
+        "renault-scenic",
+        "renault-warranty"
+      ]
     },
     {
       "id": "skoda-elroq-85-se",
@@ -160,7 +169,10 @@
       "baseScore": 82.4,
       "verdict": "A compelling nearly-new buy with strong practicality and charging performance.",
       "biggestRisk": "Three-year vehicle warranty is materially below the buyer benchmark.",
-      "sourceIds": ["skoda-elroq", "skoda-warranty"]
+      "sourceIds": [
+        "skoda-elroq",
+        "skoda-warranty"
+      ]
     },
     {
       "id": "hyundai-kona-electric-65",
@@ -200,7 +212,10 @@
       "baseScore": 81.8,
       "verdict": "Easy to park, efficient and well-supported, with attractive nearly-new pricing.",
       "biggestRisk": "Slower rapid charging than newer 800V-class rivals.",
-      "sourceIds": ["hyundai-kona", "hyundai-warranty"]
+      "sourceIds": [
+        "hyundai-kona",
+        "hyundai-warranty"
+      ]
     },
     {
       "id": "toyota-rav4-phev-icon",
@@ -241,7 +256,10 @@
       "baseScore": 84.2,
       "verdict": "Best PHEV: long electric range and strong Toyota warranty make it genuinely useful for 30–40 mile trips.",
       "biggestRisk": "Higher purchase price and drivetrain complexity than the leading BEVs.",
-      "sourceIds": ["toyota-rav4", "toyota-warranty"]
+      "sourceIds": [
+        "toyota-rav4",
+        "toyota-warranty"
+      ]
     },
     {
       "id": "ford-kuga-phev-stline",
@@ -282,7 +300,10 @@
       "baseScore": 74.5,
       "verdict": "Good used-value PHEV but its real-world electric range is borderline for the full 30–40 mile journey profile.",
       "biggestRisk": "Short warranty and regular engine use on colder 40-mile journeys.",
-      "sourceIds": ["ford-kuga", "ford-warranty"]
+      "sourceIds": [
+        "ford-kuga",
+        "ford-warranty"
+      ]
     },
     {
       "id": "mg-hs-phev-trophy",
@@ -323,28 +344,247 @@
       "baseScore": 77.5,
       "verdict": "Strong purchase price, electric range and warranty, but depreciation risk needs close monitoring.",
       "biggestRisk": "Residual-value risk is higher than the strongest Japanese and Korean alternatives.",
-      "sourceIds": ["mg-hs", "mg-warranty"]
+      "sourceIds": [
+        "mg-hs",
+        "mg-warranty"
+      ]
     }
   ],
   "sources": [
-    {"id":"kia-ev3-price","name":"Kia UK EV3 pricing","url":"https://www.kia.com/uk/new-cars/ev3/pricing/","type":"Manufacturer pricing","quality":"Primary","refreshHours":24,"lastChecked":"2026-08-28T12:00:00Z","status":"current","expectedPrice":34555,"anchors":["EV3","Air","Long Range"]},
-    {"id":"kia-warranty","name":"Kia UK warranty","url":"https://www.kia.com/uk/owners/warranty/","type":"Warranty","quality":"Primary","refreshHours":168,"lastChecked":"2026-08-28T12:00:00Z","status":"current","anchors":["7 year","100,000"]},
-    {"id":"toyota-chrplus","name":"Toyota UK C-HR+","url":"https://www.toyota.co.uk/new-cars/toyota-c-hr-plus","type":"Manufacturer pricing","quality":"Primary","refreshHours":24,"lastChecked":"2026-08-28T12:00:00Z","status":"current","expectedPrice":35995,"anchors":["C-HR+","Icon"]},
-    {"id":"toyota-rav4","name":"Toyota UK RAV4","url":"https://www.toyota.co.uk/new-cars/rav4","type":"Manufacturer pricing","quality":"Primary","refreshHours":24,"lastChecked":"2026-08-28T12:00:00Z","status":"current","expectedPrice":43845,"anchors":["RAV4","Plug-in"]},
-    {"id":"toyota-warranty","name":"Toyota Relax warranty","url":"https://www.toyota.co.uk/owners/toyota-warranty","type":"Warranty","quality":"Primary","refreshHours":168,"lastChecked":"2026-08-28T12:00:00Z","status":"current","anchors":["10 years","100,000"]},
-    {"id":"renault-scenic","name":"Renault UK Scenic E-Tech","url":"https://www.renault.co.uk/electric-vehicles/scenic.html","type":"Manufacturer pricing","quality":"Primary","refreshHours":24,"lastChecked":"2026-08-28T12:00:00Z","status":"current","expectedPrice":37995,"anchors":["Scenic","E-Tech"]},
-    {"id":"renault-warranty","name":"Renault UK warranty","url":"https://www.renault.co.uk/owners/warranty.html","type":"Warranty","quality":"Primary","refreshHours":168,"lastChecked":"2026-08-28T12:00:00Z","status":"current"},
-    {"id":"skoda-elroq","name":"Skoda UK Elroq","url":"https://www.skoda.co.uk/new-cars/elroq/elroq","type":"Manufacturer pricing","quality":"Primary","refreshHours":24,"lastChecked":"2026-08-28T12:00:00Z","status":"current","expectedPrice":35450,"anchors":["Elroq","85"]},
-    {"id":"skoda-warranty","name":"Skoda UK warranty","url":"https://www.skoda.co.uk/owners/warranty","type":"Warranty","quality":"Primary","refreshHours":168,"lastChecked":"2026-08-28T12:00:00Z","status":"current"},
-    {"id":"hyundai-kona","name":"Hyundai UK Kona Electric","url":"https://www.hyundai.com/uk/en/models/kona-electric.html","type":"Manufacturer pricing","quality":"Primary","refreshHours":24,"lastChecked":"2026-08-28T12:00:00Z","status":"current","expectedPrice":34995,"anchors":["KONA","Electric"]},
-    {"id":"hyundai-warranty","name":"Hyundai UK warranty","url":"https://www.hyundai.com/uk/en/owners/owning-a-hyundai/warranty.html","type":"Warranty","quality":"Primary","refreshHours":168,"lastChecked":"2026-08-28T12:00:00Z","status":"current"},
-    {"id":"ford-kuga","name":"Ford UK Kuga","url":"https://www.ford.co.uk/cars/kuga","type":"Manufacturer pricing","quality":"Primary","refreshHours":24,"lastChecked":"2026-08-28T12:00:00Z","status":"current","expectedPrice":39995,"anchors":["Kuga","Plug-in"]},
-    {"id":"ford-warranty","name":"Ford UK warranty","url":"https://www.ford.co.uk/owner/my-vehicle/warranties","type":"Warranty","quality":"Primary","refreshHours":168,"lastChecked":"2026-08-28T12:00:00Z","status":"current"},
-    {"id":"mg-hs","name":"MG UK HS Plug-in Hybrid","url":"https://www.mg.co.uk/new-cars/mg-hs","type":"Manufacturer pricing","quality":"Primary","refreshHours":24,"lastChecked":"2026-08-28T12:00:00Z","status":"current","expectedPrice":34595,"anchors":["HS","Plug-in"]},
-    {"id":"mg-warranty","name":"MG UK warranty","url":"https://www.mg.co.uk/owners/warranty","type":"Warranty","quality":"Primary","refreshHours":168,"lastChecked":"2026-08-28T12:00:00Z","status":"current"},
-    {"id":"gov-ev-grant","name":"GOV.UK electric car grant","url":"https://www.gov.uk/electric-car-grant","type":"Government incentive","quality":"Primary","refreshHours":24,"lastChecked":"2026-08-28T12:00:00Z","status":"current"},
-    {"id":"gov-ved","name":"GOV.UK vehicle tax rates","url":"https://www.gov.uk/vehicle-tax-rate-tables","type":"Taxation","quality":"Primary","refreshHours":24,"lastChecked":"2026-08-28T12:00:00Z","status":"current"},
-    {"id":"euro-ncap","name":"Euro NCAP","url":"https://www.euroncap.com/","type":"Safety","quality":"Primary","refreshHours":168,"lastChecked":"2026-08-28T12:00:00Z","status":"current"}
+    {
+      "id": "kia-ev3-price",
+      "name": "Kia UK EV3 pricing",
+      "url": "https://www.kia.com/uk/new-cars/ev3/pricing/",
+      "type": "Manufacturer pricing",
+      "quality": "Primary",
+      "refreshHours": 24,
+      "lastChecked": "2026-08-28T12:00:00Z",
+      "status": "current",
+      "expectedPrice": 34555,
+      "anchors": [
+        "EV3",
+        "Air",
+        "Long Range"
+      ]
+    },
+    {
+      "id": "kia-warranty",
+      "name": "Kia UK warranty",
+      "url": "https://www.kia.com/uk/owners/warranty/",
+      "type": "Warranty",
+      "quality": "Primary",
+      "refreshHours": 168,
+      "lastChecked": "2026-08-28T12:00:00Z",
+      "status": "current",
+      "anchors": [
+        "7 year",
+        "100,000"
+      ]
+    },
+    {
+      "id": "toyota-chrplus",
+      "name": "Toyota UK C-HR+",
+      "url": "https://www.toyota.co.uk/new-cars/c-hr-plus",
+      "type": "Manufacturer pricing",
+      "quality": "Primary",
+      "refreshHours": 24,
+      "lastChecked": "2026-08-28T12:00:00Z",
+      "status": "current",
+      "expectedPrice": 36150,
+      "anchors": [
+        "C-HR+",
+        "Design",
+        "77"
+      ]
+    },
+    {
+      "id": "toyota-rav4",
+      "name": "Toyota UK RAV4",
+      "url": "https://www.toyota.co.uk/new-cars/rav4",
+      "type": "Manufacturer pricing",
+      "quality": "Primary",
+      "refreshHours": 24,
+      "lastChecked": "2026-08-28T12:00:00Z",
+      "status": "current",
+      "expectedPrice": 43845,
+      "anchors": [
+        "RAV4",
+        "Plug-in"
+      ]
+    },
+    {
+      "id": "toyota-warranty",
+      "name": "Toyota Relax warranty",
+      "url": "https://www.toyota.co.uk/owners/toyota-warranty",
+      "type": "Warranty",
+      "quality": "Primary",
+      "refreshHours": 168,
+      "lastChecked": "2026-08-28T12:00:00Z",
+      "status": "current",
+      "anchors": [
+        "10 years",
+        "100,000"
+      ]
+    },
+    {
+      "id": "renault-scenic",
+      "name": "Renault UK Scenic E-Tech",
+      "url": "https://www.renault.co.uk/electric-vehicles/scenic.html",
+      "type": "Manufacturer pricing",
+      "quality": "Primary",
+      "refreshHours": 24,
+      "lastChecked": "2026-08-28T12:00:00Z",
+      "status": "current",
+      "expectedPrice": 37995,
+      "anchors": [
+        "Scenic",
+        "E-Tech"
+      ]
+    },
+    {
+      "id": "renault-warranty",
+      "name": "Renault UK warranty",
+      "url": "https://www.renault.co.uk/owners/warranty.html",
+      "type": "Warranty",
+      "quality": "Primary",
+      "refreshHours": 168,
+      "lastChecked": "2026-08-28T12:00:00Z",
+      "status": "current"
+    },
+    {
+      "id": "skoda-elroq",
+      "name": "Skoda UK Elroq",
+      "url": "https://www.skoda.co.uk/new-cars/elroq/elroq",
+      "type": "Manufacturer pricing",
+      "quality": "Primary",
+      "refreshHours": 24,
+      "lastChecked": "2026-08-28T12:00:00Z",
+      "status": "current",
+      "expectedPrice": 35450,
+      "anchors": [
+        "Elroq",
+        "85"
+      ]
+    },
+    {
+      "id": "skoda-warranty",
+      "name": "Skoda UK warranty",
+      "url": "https://www.skoda.co.uk/owners/warranty",
+      "type": "Warranty",
+      "quality": "Primary",
+      "refreshHours": 168,
+      "lastChecked": "2026-08-28T12:00:00Z",
+      "status": "current"
+    },
+    {
+      "id": "hyundai-kona",
+      "name": "Hyundai UK Kona Electric",
+      "url": "https://www.hyundai.com/uk/en/models/kona-electric.html",
+      "type": "Manufacturer pricing",
+      "quality": "Primary",
+      "refreshHours": 24,
+      "lastChecked": "2026-08-28T12:00:00Z",
+      "status": "current",
+      "expectedPrice": 34995,
+      "anchors": [
+        "KONA",
+        "Electric"
+      ]
+    },
+    {
+      "id": "hyundai-warranty",
+      "name": "Hyundai UK warranty",
+      "url": "https://www.hyundai.com/uk/en/owners/owning-a-hyundai/warranty.html",
+      "type": "Warranty",
+      "quality": "Primary",
+      "refreshHours": 168,
+      "lastChecked": "2026-08-28T12:00:00Z",
+      "status": "current"
+    },
+    {
+      "id": "ford-kuga",
+      "name": "Ford UK Kuga",
+      "url": "https://www.ford.co.uk/cars/kuga",
+      "type": "Manufacturer pricing",
+      "quality": "Primary",
+      "refreshHours": 24,
+      "lastChecked": "2026-08-28T12:00:00Z",
+      "status": "current",
+      "expectedPrice": 39995,
+      "anchors": [
+        "Kuga",
+        "Plug-in"
+      ]
+    },
+    {
+      "id": "ford-warranty",
+      "name": "Ford UK warranty",
+      "url": "https://www.ford.co.uk/owner/my-vehicle/warranties",
+      "type": "Warranty",
+      "quality": "Primary",
+      "refreshHours": 168,
+      "lastChecked": "2026-08-28T12:00:00Z",
+      "status": "current"
+    },
+    {
+      "id": "mg-hs",
+      "name": "MG UK HS Plug-in Hybrid",
+      "url": "https://www.mg.co.uk/new-cars/mg-hs",
+      "type": "Manufacturer pricing",
+      "quality": "Primary",
+      "refreshHours": 24,
+      "lastChecked": "2026-08-28T12:00:00Z",
+      "status": "current",
+      "expectedPrice": 34595,
+      "anchors": [
+        "HS",
+        "Plug-in"
+      ]
+    },
+    {
+      "id": "mg-warranty",
+      "name": "MG UK warranty",
+      "url": "https://www.mg.co.uk/owners/warranty",
+      "type": "Warranty",
+      "quality": "Primary",
+      "refreshHours": 168,
+      "lastChecked": "2026-08-28T12:00:00Z",
+      "status": "current"
+    },
+    {
+      "id": "gov-ev-grant",
+      "name": "GOV.UK electric car grant",
+      "url": "https://www.gov.uk/electric-car-grant",
+      "type": "Government incentive",
+      "quality": "Primary",
+      "refreshHours": 24,
+      "lastChecked": "2026-08-28T12:00:00Z",
+      "status": "current"
+    },
+    {
+      "id": "gov-ved",
+      "name": "GOV.UK vehicle tax rates",
+      "url": "https://www.gov.uk/vehicle-tax-rate-tables",
+      "type": "Taxation",
+      "quality": "Primary",
+      "refreshHours": 24,
+      "lastChecked": "2026-08-28T12:00:00Z",
+      "status": "current"
+    },
+    {
+      "id": "euro-ncap",
+      "name": "Euro NCAP",
+      "url": "https://www.euroncap.com/",
+      "type": "Safety",
+      "quality": "Primary",
+      "refreshHours": 168,
+      "lastChecked": "2026-08-28T12:00:00Z",
+      "status": "current"
+    }
   ],
-  "monitor": {"lastRun":"2026-08-28T12:00:00Z","changedSources":0,"failedSources":0}
+  "monitor": {
+    "lastRun": "2026-08-28T12:00:00Z",
+    "changedSources": 0,
+    "failedSources": 0
+  }
 }
