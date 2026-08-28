@@ -293,6 +293,68 @@ async function getTaxData() {
   }
 }
 
+const MARKETCHECK_MODEL: Record<string, string> = {
+  "kia-ev3-air-long-range": "EV3",
+  "toyota-chr-plus-icon": "C-HR+",
+  "renault-scenic-techno-lr": "Scenic",
+  "skoda-elroq-85-se": "Elroq",
+  "hyundai-kona-electric-65": "Kona",
+  "toyota-rav4-phev-icon": "RAV4",
+  "ford-kuga-phev-stline": "Kuga",
+  "mg-hs-phev-trophy": "HS",
+};
+
+async function getMarketCheckUsedObservations(): Promise<LiveVehicleObservation[]> {
+  const apiKey = process.env.MARKETCHECK_API_KEY;
+  if (!apiKey) return [];
+
+  return Promise.all(
+    VEHICLES.map(async (vehicle): Promise<LiveVehicleObservation> => {
+      try {
+        const url = new URL("https://api.marketcheck.com/v2/search/car/uk/active");
+        url.searchParams.set("api_key", apiKey);
+        url.searchParams.set("make", vehicle.brand);
+        url.searchParams.set("model", MARKETCHECK_MODEL[vehicle.id] ?? vehicle.model);
+        url.searchParams.set("year", "2025,2026");
+        url.searchParams.set("miles_range", "0-15000");
+        url.searchParams.set("inventory_type", "used");
+        url.searchParams.set("rows", "0");
+        url.searchParams.set("stats", "price,miles");
+
+        const response = await fetch(url, {
+          headers: { accept: "application/json", "user-agent": USER_AGENT },
+          next: { revalidate: 43200 },
+        });
+        if (!response.ok) throw new Error(`MarketCheck HTTP ${response.status}`);
+        const payload = await response.json() as {
+          num_found?: number;
+          stats?: {
+            price?: { median?: number; min?: number; max?: number; count?: number };
+            miles?: { median?: number };
+          };
+        };
+        const price = payload.stats?.price;
+        return {
+          vehicleId: vehicle.id,
+          observedUsedMedian: price?.median,
+          observedUsedMin: price?.min,
+          observedUsedMax: price?.max,
+          observedUsedCount: price?.count ?? payload.num_found,
+          observedUsedMilesMedian: payload.stats?.miles?.median,
+          usedCheckedAt: new Date().toISOString(),
+          sourceStatus: price?.median ? "live" : "fallback",
+        };
+      } catch {
+        return {
+          vehicleId: vehicle.id,
+          usedCheckedAt: new Date().toISOString(),
+          sourceStatus: "failed",
+        };
+      }
+    }),
+  );
+}
+
 async function integrationStatuses(): Promise<IntegrationStatus[]> {
   const capConfigured = Boolean(process.env.CAP_HPI_CLIENT_ID && process.env.CAP_HPI_CLIENT_SECRET);
   const autoConfigured = Boolean(process.env.AUTOTRADER_CLIENT_ID && process.env.AUTOTRADER_CLIENT_SECRET);
@@ -338,36 +400,38 @@ async function integrationStatuses(): Promise<IntegrationStatus[]> {
 }
 
 export async function getLiveSnapshot(): Promise<LiveSnapshot> {
-  const [manufacturer, referenceSources, grants, octopus, fuel, tax, integrations] = await Promise.all([
+  const [manufacturer, referenceSources, grants, octopus, fuel, tax, usedMarket, integrations] = await Promise.all([
     getManufacturerObservations(),
     probeReferenceSources(),
     getGrantObservations(),
     getOctopusData(),
     getFuelData(),
     getTaxData(),
+    getMarketCheckUsedObservations(),
     integrationStatuses(),
   ]);
 
   const grantMap = new Map(grants.observations.map((item) => [item.vehicleId, item]));
-  const vehicleObservations = manufacturer.observations.map((observation) => ({
-    ...observation,
-    ...grantMap.get(observation.vehicleId),
-    vehicleId: observation.vehicleId,
-    sourceStatus: observation.sourceStatus,
-  }));
+  const manufacturerMap = new Map(manufacturer.observations.map((item) => [item.vehicleId, item]));
+  const usedMap = new Map(usedMarket.map((item) => [item.vehicleId, item]));
+  const vehicleObservations: LiveVehicleObservation[] = VEHICLES.map((vehicle) => {
+    const manufacturerObservation = manufacturerMap.get(vehicle.id);
+    const usedObservation = usedMap.get(vehicle.id);
+    const grant = grantMap.get(vehicle.id);
+    const statuses = [manufacturerObservation?.sourceStatus, usedObservation?.sourceStatus].filter(Boolean);
+    const sourceStatus: LiveVehicleObservation["sourceStatus"] =
+      statuses.includes("live") ? "live" : statuses.includes("failed") && statuses.length === 1 ? "failed" : "fallback";
 
-  for (const vehicle of VEHICLES) {
-    if (!vehicleObservations.some((item) => item.vehicleId === vehicle.id)) {
-      const grant = grantMap.get(vehicle.id);
-      vehicleObservations.push({
-        vehicleId: vehicle.id,
-        sourceStatus: "fallback",
-        grantEligible: grant?.grantEligible,
-        grantBand: grant?.grantBand,
-        grantAmount: grant?.grantAmount,
-      });
-    }
-  }
+    return {
+      vehicleId: vehicle.id,
+      ...manufacturerObservation,
+      ...usedObservation,
+      grantEligible: grant?.grantEligible,
+      grantBand: grant?.grantBand,
+      grantAmount: grant?.grantAmount,
+      sourceStatus,
+    };
+  });
 
   const sourceMap = new Map(manufacturer.sources.map((source) => [source.id, source]));
   for (const source of referenceSources) sourceMap.set(source.id, source);
