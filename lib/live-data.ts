@@ -48,22 +48,39 @@ function normalize(value: string) {
 
 function extractPrice(text: string, expected?: number, anchors: string[] = []) {
   if (!expected) return undefined;
-  let scope = text;
+
+  const scopes: string[] = [];
+  const normalized = normalize(text);
   for (const anchor of anchors) {
-    const idx = normalize(text).indexOf(normalize(anchor));
-    if (idx >= 0) {
-      scope = text.slice(Math.max(0, idx - 1200), idx + 2800);
-      break;
+    const target = normalize(anchor);
+    let from = 0;
+    while (target) {
+      const idx = normalized.indexOf(target, from);
+      if (idx < 0) break;
+      scopes.push(text.slice(Math.max(0, idx - 1400), idx + 3500));
+      from = idx + target.length;
+      if (scopes.length >= 12) break;
     }
+    if (scopes.length >= 12) break;
   }
+  scopes.push(text);
 
-  const prices = [...scope.matchAll(/£\s?([1-9][0-9]{1,2}(?:,[0-9]{3})+)/g)]
-    .map((match) => Number(match[1].replaceAll(",", "")))
-    .filter((price) => price >= 15000 && price <= 120000);
+  const ranked: Array<{ price: number; scoped: boolean }> = [];
+  scopes.forEach((scope, index) => {
+    for (const match of scope.matchAll(/£\s?([1-9][0-9]{1,2}(?:,[0-9]{3})+)/g)) {
+      const price = Number(match[1].replaceAll(",", ""));
+      if (price >= 15000 && price <= 120000) ranked.push({ price, scoped: index < scopes.length - 1 });
+    }
+  });
 
-  if (!prices.length) return undefined;
-  const closest = prices.toSorted((a, b) => Math.abs(a - expected) - Math.abs(b - expected))[0];
-  return Math.abs(closest - expected) / expected <= 0.15 ? closest : undefined;
+  if (!ranked.length) return undefined;
+  const closest = ranked.toSorted((a, b) => {
+    const distance = Math.abs(a.price - expected) - Math.abs(b.price - expected);
+    if (distance !== 0) return distance;
+    return Number(b.scoped) - Number(a.scoped);
+  })[0]?.price;
+
+  return closest && Math.abs(closest - expected) / expected <= 0.15 ? closest : undefined;
 }
 
 async function getManufacturerObservations(): Promise<{ observations: LiveVehicleObservation[]; sources: Source[] }> {
