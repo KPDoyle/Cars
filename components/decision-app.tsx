@@ -198,6 +198,8 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
   }, [live]);
 
   const sources = live.sources;
+  const safetyMap = useMemo(() => new Map(live.safety.map((item) => [item.vehicleId, item])), [live.safety]);
+  const recallMap = useMemo(() => new Map(live.recalls.map((item) => [item.vehicleId, item])), [live.recalls]);
   const ranked = useMemo(
     () => [...liveVehicles].sort((a, b) => personalisedScore(b, profile) - personalisedScore(a, profile)),
     [liveVehicles, profile],
@@ -220,6 +222,17 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
           level: "good",
           title: `${vehicle.brand} ${vehicle.model} has reached the excellent-deal band`,
           body: `Observed manufacturer price ${money(observation.observedNewPrice)} versus excellent-deal threshold ${money(vehicle.excellentDeal)}.`,
+        });
+      }
+    }
+
+    for (const recall of live.recalls) {
+      if ((recall.recallCount ?? 0) > 0) {
+        const vehicle = liveVehicles.find((item) => item.id === recall.vehicleId);
+        items.push({
+          level: "warn",
+          title: `${vehicle?.brand ?? "Vehicle"} ${vehicle?.model ?? ""}: ${recall.recallCount} model-year recall${recall.recallCount === 1 ? "" : "s"}`,
+          body: "Check the specific VIN/registration before purchase to confirm whether any safety work is outstanding.",
         });
       }
     }
@@ -433,10 +446,12 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
               })}
             </div>
             <div className="compare-grid">
-              {vehicles.filter((vehicle) => compareIds.includes(vehicle.id)).map((vehicle) => {
+              {liveVehicles.filter((vehicle) => compareIds.includes(vehicle.id)).map((vehicle) => {
                 const energy = annualEnergyCost(vehicle, profile);
                 const cost = tco(vehicle, profile);
                 const exit = warrantyExit(vehicle, profile);
+                const safety = safetyMap.get(vehicle.id);
+                const recall = recallMap.get(vehicle.id);
                 return (
                   <article key={vehicle.id} className="compare-card">
                     <div className="compare-title"><div><VehicleBadge powertrain={vehicle.powertrain} /><h3>{vehicle.brand} {vehicle.model}</h3><p>{vehicle.trim}</p></div><span className={classNames("score-chip", scoreClass(personalisedScore(vehicle, profile)))}>{personalisedScore(vehicle, profile).toFixed(1)}</span></div>
@@ -451,6 +466,9 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
                     <Metric label="Safe warranty exit" value={`${exit.yearsFromPurchase.toFixed(1)} yrs`} />
                     <Metric label="Boot" value={`${vehicle.bootLitres} L`} />
                     <Metric label="Parking score" value={`${vehicle.parkingScore}/100`} />
+                    <Metric label="Euro NCAP" value={safety?.stars ? `${safety.stars}/5 (${safety.testYear ?? "—"})${safety.ratingExpired ? " · expired" : ""}` : "No current result"} />
+                    <Metric label="Adult / child safety" value={safety?.adultProtection != null && safety?.childProtection != null ? `${safety.adultProtection}% / ${safety.childProtection}%` : "—"} />
+                    <Metric label="Model-year recalls" value={recall?.status === "live" && recall.recallCount != null ? `${recall.recallCount}` : "Check unavailable"} />
                     <Metric label="Residual risk" value={vehicle.residualRisk} risk={vehicle.residualRisk} />
                     <div className="compare-verdict"><strong>Why buy it</strong><p>{vehicle.verdict}</p><strong>Biggest risk</strong><p>{vehicle.biggestRisk}</p></div>
                   </article>
@@ -538,12 +556,14 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
 
         {view === "data" ? (
           <section className="page">
-            <PageTitle eyebrow="Continuous evidence layer" title="Data monitor" description="Every material fact should be dated, sourced and confidence-rated. The repository includes a scheduled source checker that detects page changes and captured price observations." />
+            <PageTitle eyebrow="Continuous evidence layer" title="Data monitor" description="Every material fact is dated and source-traceable. Public price, grant, energy, tax, Euro NCAP and DVSA recall feeds refresh server-side; licensed market feeds activate when provider credentials are supplied." />
             <div className="monitor-summary">
               <div><span className="mini-icon"><Database size={19} /></span><div><span>Sources configured</span><strong>{sources.length}</strong></div></div>
               <div><span className="mini-icon"><CheckCircle2 size={19} /></span><div><span>Live / current</span><strong>{live.diagnostics.liveSourceCount}</strong></div></div>
               <div><span className="mini-icon"><RefreshCcw size={19} /></span><div><span>Last refresh</span><strong>{new Date(live.generatedAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}</strong></div></div>
               <div><span className="mini-icon"><Activity size={19} /></span><div><span>Failed probes</span><strong>{live.diagnostics.failedSourceCount}</strong></div></div>
+              <div><span className="mini-icon"><ShieldCheck size={19} /></span><div><span>Euro NCAP live</span><strong>{live.safety.filter((item) => item.status === "live").length}/{live.safety.length}</strong></div></div>
+              <div><span className="mini-icon"><TriangleAlert size={19} /></span><div><span>Recall checks live</span><strong>{live.recalls.filter((item) => item.status === "live").length}/{live.recalls.length}</strong></div></div>
             </div>
             <div className="integration-grid">
               {live.integrations.map((integration) => (
@@ -565,7 +585,7 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
               <div className="pipeline-steps">
                 {["Fetch authorised/public source", "Hash original page", "Extract price candidates", "Compare previous observation", "Flag material change", "Commit refreshed dataset"].map((step, index) => <div key={step}><span>{index + 1}</span><p>{step}</p></div>)}
               </div>
-              <p className="pipeline-note">The first release deliberately does not auto-apply ambiguous scraped values to a recommendation. It records observations and change flags for review. Commercial feeds such as CAP HPI and authorised advert APIs can later become high-confidence auto-publish connectors.</p>
+              <p className="pipeline-note">Ambiguous webpage values are never silently promoted into the recommendation. Public authoritative feeds publish when validation succeeds. Licensed inventory and valuation providers remain credential-gated and will automatically enrich the same model when their production keys are present.</p>
             </div>
           </section>
         ) : null}
