@@ -25,7 +25,7 @@ import {
   X,
   Zap,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import rawData from "@/data/vehicle-data.json";
 import {
   annualEnergyCost,
@@ -173,21 +173,6 @@ export function DecisionApp() {
     "toyota-chr-plus-icon",
   ]);
   const [dealQuery, setDealQuery] = useState("");
-
-  useEffect(() => {
-    const saved = window.localStorage.getItem("carwise-profile-v1");
-    if (saved) {
-      try {
-        setProfile({ ...defaultProfile, ...JSON.parse(saved) });
-      } catch {
-        // Ignore invalid local state and use research defaults.
-      }
-    }
-  }, []);
-
-  useEffect(() => {
-    window.localStorage.setItem("carwise-profile-v1", JSON.stringify(profile));
-  }, [profile]);
 
   const ranked = useMemo(
     () => [...vehicles].sort((a, b) => personalisedScore(b, profile) - personalisedScore(a, profile)),
@@ -400,7 +385,7 @@ export function DecisionApp() {
 
         {view === "profile" ? (
           <section className="page">
-            <PageTitle eyebrow="Personalise the decision" title="Buyer profile" description="The recommendation recalculates immediately. Your settings are saved only in this browser." />
+            <PageTitle eyebrow="Personalise the decision" title="Buyer profile" description="The recommendation recalculates immediately as you change the assumptions." />
             <div className="profile-layout">
               <div className="settings-card">
                 <h3>Usage & budget</h3>
