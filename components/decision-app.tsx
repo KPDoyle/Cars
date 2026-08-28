@@ -176,7 +176,7 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
   const [compareIds, setCompareIds] = useState<string[]>([
     "kia-ev3-air-long-range",
     "toyota-rav4-phev-icon",
-    "toyota-chr-plus-icon",
+    "toyota-chr-plus-design",
   ]);
   const [dealQuery, setDealQuery] = useState("");
 
