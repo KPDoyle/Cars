@@ -570,7 +570,9 @@ async function getPublicRecallObservations(): Promise<LiveRecallObservation[]> {
 
 async function integrationStatuses(): Promise<IntegrationStatus[]> {
   const capConfigured = Boolean(process.env.CAP_HPI_CLIENT_ID && process.env.CAP_HPI_CLIENT_SECRET);
-  const autoConfigured = Boolean(process.env.AUTOTRADER_CLIENT_ID && process.env.AUTOTRADER_CLIENT_SECRET);
+  const autoKey = process.env.AUTOTRADER_API_KEY ?? process.env.AUTOTRADER_CLIENT_ID;
+  const autoSecret = process.env.AUTOTRADER_API_SECRET ?? process.env.AUTOTRADER_CLIENT_SECRET;
+  const autoConfigured = Boolean(autoKey && autoSecret && process.env.AUTOTRADER_ADVERTISER_ID);
   const fuelFinderConfigured = Boolean(process.env.FUEL_FINDER_CLIENT_ID && process.env.FUEL_FINDER_CLIENT_SECRET);
   const dvsaConfigured = Boolean(process.env.DVSA_RECALLS_CLIENT_ID && process.env.DVSA_RECALLS_CLIENT_SECRET && process.env.DVSA_RECALLS_API_KEY);
   const marketCheckConfigured = Boolean(process.env.MARKETCHECK_API_KEY);
@@ -599,6 +601,30 @@ async function integrationStatuses(): Promise<IntegrationStatus[]> {
     }
   }
 
+  let autoStatus: IntegrationStatus["status"] = autoConfigured ? "configured" : "unconfigured";
+  let autoDetail = autoConfigured
+    ? "Credentials present; authentication health check pending."
+    : "Requires Auto Trader API key, API secret, advertiser ID and production capability approval.";
+  if (autoConfigured) {
+    try {
+      const body = new URLSearchParams({ key: autoKey!, secret: autoSecret! });
+      const base = (process.env.AUTOTRADER_API_URL ?? "https://api.autotrader.co.uk").replace(/\/$/, "");
+      const response = await fetch(`${base}/authenticate`, {
+        method: "POST",
+        headers: { "content-type": "application/x-www-form-urlencoded", accept: "application/json" },
+        body,
+        cache: "no-store",
+      });
+      autoStatus = response.ok ? "live" : "failed";
+      autoDetail = response.ok
+        ? "Authentication connected; enabled capabilities can be called through the live integration routes."
+        : `Authentication failed with HTTP ${response.status}; confirm credentials and production access.`;
+    } catch {
+      autoStatus = "failed";
+      autoDetail = "Auto Trader authentication health check failed.";
+    }
+  }
+
   return [
     { id: "manufacturer", name: "Manufacturer UK sites", status: "live", detail: "Primary price and warranty pages are probed server-side with validation and fallback.", requiresCredentials: false },
     { id: "gov-grant", name: "GOV.UK Electric Car Grant", status: "live", detail: "Band 1/Band 2 eligibility is read from the current official list.", requiresCredentials: false },
@@ -608,7 +634,7 @@ async function integrationStatuses(): Promise<IntegrationStatus[]> {
     { id: "public-recalls", name: "DVSA / GOV.UK public recalls", status: "live", detail: "Model-year recall history uses the public DVSA service; VIN-level outstanding status remains a purchase-time check.", requiresCredentials: false },
     { id: "marketcheck", name: "MarketCheck UK live inventory", status: marketCheckConfigured ? "configured" : "unconfigured", detail: marketCheckConfigured ? "API key present; live UK inventory endpoint enabled." : "Add a MarketCheck API key to enable live UK nearly-new listings immediately.", requiresCredentials: true },
     { id: "cap-hpi", name: "CAP HPI valuations", status: capStatus, detail: capDetail, requiresCredentials: true },
-    { id: "autotrader", name: "Auto Trader Connect Search Adverts", status: autoConfigured ? "configured" : "unconfigured", detail: autoConfigured ? "Credentials present; production Search Adverts access must be approved by Auto Trader." : "Requires Auto Trader Connect credentials and Search Adverts production approval.", requiresCredentials: true },
+    { id: "autotrader", name: "Auto Trader Connect", status: autoStatus, detail: autoDetail, requiresCredentials: true },
     { id: "fuel-finder", name: "GOV.UK Fuel Finder API", status: fuelFinderConfigured ? "configured" : "unconfigured", detail: fuelFinderConfigured ? "Credentials present; use for local forecourt prices." : "OAuth credentials required for near-real-time local forecourt prices; weekly UK average remains live without credentials.", requiresCredentials: true },
     { id: "dvsa-recalls-api", name: "DVSA Manufacturer Recalls API", status: dvsaConfigured ? "configured" : "unconfigured", detail: dvsaConfigured ? "Manufacturer API credentials are present." : "Optional manufacturer-grade API access requires DVSA onboarding; the public DVSA recall feed is already active.", requiresCredentials: true },
   ];
