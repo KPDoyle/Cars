@@ -166,28 +166,76 @@ async function getOctopusData() {
   }
 }
 
+function parseUkDate(value: string) {
+  const clean = value.trim();
+  const dmy = clean.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})$/);
+  if (dmy) {
+    const year = Number(dmy[3].length === 2 ? `20${dmy[3]}` : dmy[3]);
+    const date = new Date(Date.UTC(year, Number(dmy[2]) - 1, Number(dmy[1])));
+    return Number.isNaN(date.getTime()) ? undefined : date;
+  }
+  const parsed = new Date(clean);
+  return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+}
+
 async function getFuelData() {
   const statsUrl = "https://www.gov.uk/government/statistics/weekly-road-fuel-prices";
   try {
     const html = await fetchText(statsUrl, 1800);
-    const links = [...html.matchAll(/href=["']([^"']+\.csv(?:\?[^"']*)?)["']/gi)].map((match) => match[1]);
-    const preferred = links.find((link) => /weekly.*fuel.*price/i.test(link)) ?? links[0];
-    if (!preferred) throw new Error("CSV attachment not found");
-    const csvUrl = preferred.startsWith("http") ? preferred : new URL(preferred, "https://www.gov.uk").toString();
-    const csv = await fetchText(csvUrl, 1800);
-    const rows = csv.trim().split(/\r?\n/).filter(Boolean);
-    let latest: { date: string; petrol: number; diesel: number } | undefined;
-    for (let i = rows.length - 1; i >= 1; i -= 1) {
-      const cols = rows[i].replace(/^\uFEFF/, "").split(",").map((value) => value.replaceAll('"', "").trim());
-      const petrol = Number(cols[1]);
-      const diesel = Number(cols[2]);
-      if (cols[0] && Number.isFinite(petrol) && Number.isFinite(diesel)) {
-        latest = { date: cols[0], petrol, diesel };
-        break;
-      }
-    }
+    const links = [...new Set(
+      [...html.matchAll(/href=["']([^"']+\.csv(?:\?[^"']*)?)["']/gi)]
+        .map((match) => match[1])
+        .map((link) => link.startsWith("http") ? link : new URL(link, "https://www.gov.uk").toString()),
+    )];
+    if (!links.length) throw new Error("CSV attachment not found");
+
+    const candidates = await Promise.all(
+      links.map(async (csvUrl) => {
+        try {
+          const csv = await fetchText(csvUrl, 1800);
+          const rows = csv.trim().split(/\r?\n/).filter(Boolean);
+          let best: { date: string; dateValue: number; petrol: number; diesel: number; sourceUrl: string } | undefined;
+
+          for (let i = 1; i < rows.length; i += 1) {
+            const cols = rows[i]
+              .replace(/^\uFEFF/, "")
+              .split(",")
+              .map((value) => value.replaceAll('"', "").trim());
+            const date = parseUkDate(cols[0] ?? "");
+            const petrol = Number(cols[1]);
+            const diesel = Number(cols[2]);
+            if (!date || !Number.isFinite(petrol) || !Number.isFinite(diesel)) continue;
+            if (petrol < 50 || petrol > 300 || diesel < 50 || diesel > 300) continue;
+
+            const row = {
+              date: cols[0],
+              dateValue: date.getTime(),
+              petrol,
+              diesel,
+              sourceUrl: csvUrl,
+            };
+            if (!best || row.dateValue > best.dateValue) best = row;
+          }
+          return best;
+        } catch {
+          return undefined;
+        }
+      }),
+    );
+
+    const latest = candidates
+      .filter((item): item is NonNullable<typeof item> => Boolean(item))
+      .toSorted((a, b) => b.dateValue - a.dateValue)[0];
+
     if (!latest) throw new Error("Latest fuel row not found");
-    return { ...latest, checkedAt: new Date().toISOString(), status: "live" as const, sourceUrl: csvUrl };
+    return {
+      date: latest.date,
+      petrol: latest.petrol,
+      diesel: latest.diesel,
+      checkedAt: new Date().toISOString(),
+      status: "live" as const,
+      sourceUrl: latest.sourceUrl,
+    };
   } catch {
     return { checkedAt: new Date().toISOString(), status: "failed" as const };
   }
