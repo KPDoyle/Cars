@@ -36,7 +36,7 @@ import {
   tco,
   warrantyExit,
 } from "@/lib/calculations";
-import type { BuyerProfile, LiveSnapshot, Source, Vehicle } from "@/lib/types";
+import type { BuyerProfile, LiveSnapshot, Vehicle } from "@/lib/types";
 
 const vehicles = rawData.vehicles as unknown as Vehicle[];
 
