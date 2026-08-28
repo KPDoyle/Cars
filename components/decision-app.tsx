@@ -36,10 +36,9 @@ import {
   tco,
   warrantyExit,
 } from "@/lib/calculations";
-import type { BuyerProfile, Source, Vehicle } from "@/lib/types";
+import type { BuyerProfile, LiveSnapshot, Source, Vehicle } from "@/lib/types";
 
 const vehicles = rawData.vehicles as unknown as Vehicle[];
-const sources = rawData.sources as unknown as Source[];
 
 type View = "dashboard" | "compare" | "deals" | "profile" | "data" | "methodology";
 
@@ -163,9 +162,15 @@ function RecommendationCard({
   );
 }
 
-export function DecisionApp() {
+export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
   const [view, setView] = useState<View>("dashboard");
-  const [profile, setProfile] = useState<BuyerProfile>(defaultProfile);
+  const [live, setLive] = useState<LiveSnapshot>(initialLive);
+  const [refreshing, setRefreshing] = useState(false);
+  const [profile, setProfile] = useState<BuyerProfile>(() => ({
+    ...defaultProfile,
+    electricityPence: initialLive.market.octopusOffPeakPence ?? defaultProfile.electricityPence,
+    petrolPencePerLitre: initialLive.market.petrolPencePerLitre ?? defaultProfile.petrolPencePerLitre,
+  }));
   const [mobileOpen, setMobileOpen] = useState(false);
   const [compareIds, setCompareIds] = useState<string[]>([
     "kia-ev3-air-long-range",
@@ -174,9 +179,26 @@ export function DecisionApp() {
   ]);
   const [dealQuery, setDealQuery] = useState("");
 
+  const liveVehicles = useMemo(() => {
+    const observationMap = new Map(live.vehicleObservations.map((item) => [item.vehicleId, item]));
+    return vehicles.map((vehicle) => {
+      const observation = observationMap.get(vehicle.id);
+      const observedPrice = observation?.observedNewPrice;
+      const threshold = vehicle.powertrain === "BEV" ? live.market.vedZevThreshold : live.market.vedOtherThreshold;
+      const taxablePrice = observedPrice ?? vehicle.newPrice;
+      const annualTax = live.market.vedStandardAnnual + (taxablePrice > threshold ? live.market.vedExpensiveSupplement : 0);
+      return {
+        ...vehicle,
+        newPrice: observedPrice ?? vehicle.newPrice,
+        taxAnnual: annualTax,
+      };
+    });
+  }, [live]);
+
+  const sources = live.sources;
   const ranked = useMemo(
-    () => [...vehicles].sort((a, b) => personalisedScore(b, profile) - personalisedScore(a, profile)),
-    [profile],
+    () => [...liveVehicles].sort((a, b) => personalisedScore(b, profile) - personalisedScore(a, profile)),
+    [liveVehicles, profile],
   );
   const bevRanked = ranked.filter((vehicle) => vehicle.powertrain === "BEV");
   const phevRanked = ranked.filter((vehicle) => vehicle.powertrain === "PHEV");
@@ -187,6 +209,23 @@ export function DecisionApp() {
 
   const changeProfile = <K extends keyof BuyerProfile>(key: K, value: BuyerProfile[K]) => {
     setProfile((current) => ({ ...current, [key]: value }));
+  };
+
+  const refreshLive = async () => {
+    setRefreshing(true);
+    try {
+      const response = await fetch("/api/live", { cache: "no-store" });
+      if (!response.ok) throw new Error("Live refresh failed");
+      const nextLive = await response.json() as LiveSnapshot;
+      setLive(nextLive);
+      setProfile((current) => ({
+        ...current,
+        electricityPence: nextLive.market.octopusOffPeakPence ?? current.electricityPence,
+        petrolPencePerLitre: nextLive.market.petrolPencePerLitre ?? current.petrolPencePerLitre,
+      }));
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const changeView = (next: View) => {
@@ -215,9 +254,9 @@ export function DecisionApp() {
         </nav>
         <div className="sidebar-status">
           <div className="status-head"><Activity size={15} /><span>Research engine</span></div>
-          <strong>{sources.length} sources monitored</strong>
-          <p>Seeded 28 Aug 2026. Scheduled source checks are included in the repository.</p>
-          <div className="status-row"><span className="dot live" /> Data model ready</div>
+          <strong>{live.diagnostics.liveSourceCount}/{sources.length} sources live</strong>
+          <p>Server-backed evidence refresh with official UK sources and validated manufacturer observations.</p>
+          <div className="status-row"><span className="dot live" /> Live engine active</div>
         </div>
       </aside>
 
@@ -231,7 +270,8 @@ export function DecisionApp() {
             <strong>{nav.find((item) => item.id === view)?.label}</strong>
           </div>
           <div className="topbar-actions">
-            <span className="freshness"><span className="dot live" /> Research snapshot: 28 Aug 2026</span>
+            <span className="freshness"><span className="dot live" /> Live: {new Date(live.generatedAt).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
+            <button className="icon-button" aria-label="Refresh live data" onClick={refreshLive} disabled={refreshing}><RefreshCcw size={18} className={refreshing ? "spin" : ""} /></button>
             <button className="icon-button" aria-label="Alerts"><Bell size={18} /></button>
           </div>
         </header>
@@ -397,7 +437,9 @@ export function DecisionApp() {
               </div>
               <div className="settings-card">
                 <h3>Energy assumptions</h3>
+                <div className="live-assumption"><span className="dot live" /><strong>Octopus live rate: {live.market.octopusOffPeakPence ?? "—"}p/kWh</strong><small>Official source checked {live.market.octopusCheckedAt ? new Date(live.market.octopusCheckedAt).toLocaleString("en-GB") : "—"}</small></div>
                 <RangeField label="Home electricity" value={profile.electricityPence} min={5} max={35} step={1} suffix="p/kWh" onChange={(value) => changeProfile("electricityPence", value)} />
+                <div className="live-assumption"><span className="dot live" /><strong>UK petrol live: {live.market.petrolPencePerLitre?.toFixed(1) ?? "—"}p/L</strong><small>DESNZ weekly official data</small></div>
                 <RangeField label="Petrol" value={profile.petrolPencePerLitre} min={115} max={210} step={1} suffix="p/L" onChange={(value) => changeProfile("petrolPencePerLitre", value)} />
                 <RangeField label="PHEV charging discipline" value={profile.chargeDiscipline} min={20} max={100} step={5} suffix="%" onChange={(value) => changeProfile("chargeDiscipline", value)} />
                 <div className="assumption-note"><Zap size={17} /><p>A PHEV is only rewarded for electric miles it can realistically deliver under your journey length and charging discipline.</p></div>
@@ -429,9 +471,18 @@ export function DecisionApp() {
             <PageTitle eyebrow="Continuous evidence layer" title="Data monitor" description="Every material fact should be dated, sourced and confidence-rated. The repository includes a scheduled source checker that detects page changes and captured price observations." />
             <div className="monitor-summary">
               <div><span className="mini-icon"><Database size={19} /></span><div><span>Sources configured</span><strong>{sources.length}</strong></div></div>
-              <div><span className="mini-icon"><CheckCircle2 size={19} /></span><div><span>Primary sources</span><strong>{sources.filter((source) => source.quality === "Primary").length}</strong></div></div>
-              <div><span className="mini-icon"><RefreshCcw size={19} /></span><div><span>Fastest refresh</span><strong>24 hours</strong></div></div>
-              <div><span className="mini-icon"><Activity size={19} /></span><div><span>Monitoring model</span><strong>Change detection</strong></div></div>
+              <div><span className="mini-icon"><CheckCircle2 size={19} /></span><div><span>Live / current</span><strong>{live.diagnostics.liveSourceCount}</strong></div></div>
+              <div><span className="mini-icon"><RefreshCcw size={19} /></span><div><span>Last refresh</span><strong>{new Date(live.generatedAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}</strong></div></div>
+              <div><span className="mini-icon"><Activity size={19} /></span><div><span>Failed probes</span><strong>{live.diagnostics.failedSourceCount}</strong></div></div>
+            </div>
+            <div className="integration-grid">
+              {live.integrations.map((integration) => (
+                <article className="integration-card" key={integration.id}>
+                  <div className="integration-head"><strong>{integration.name}</strong><span className={classNames("status-pill", integration.status)}><span className={classNames("dot", integration.status === "live" && "live")} />{integration.status}</span></div>
+                  <p>{integration.detail}</p>
+                  {integration.requiresCredentials && integration.status === "unconfigured" ? <small>Credentials / provider approval required</small> : null}
+                </article>
+              ))}
             </div>
             <div className="table-wrap source-wrap">
               <table className="source-table">
