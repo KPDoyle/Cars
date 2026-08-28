@@ -84,7 +84,7 @@ function extractPrice(text: string, expected?: number, anchors: string[] = []) {
 }
 
 async function getManufacturerObservations(): Promise<{ observations: LiveVehicleObservation[]; sources: Source[] }> {
-  const pricingSources = BASE_SOURCES.filter((source) => source.type === "Manufacturer pricing");
+  const pricingSources = BASE_SOURCES.filter((source) => source.type === "Manufacturer pricing" || source.type === "Dealer pricing");
   const updated = new Map<string, Source>();
   const observations: LiveVehicleObservation[] = [];
 
@@ -128,7 +128,7 @@ async function getManufacturerObservations(): Promise<{ observations: LiveVehicl
 
 async function probeReferenceSources(): Promise<Source[]> {
   const skip = new Set([
-    ...BASE_SOURCES.filter((source) => source.type === "Manufacturer pricing").map((source) => source.id),
+    ...BASE_SOURCES.filter((source) => source.type === "Manufacturer pricing" || source.type === "Dealer pricing").map((source) => source.id),
     "gov-ev-grant",
     "gov-ved",
   ]);
