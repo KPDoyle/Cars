@@ -181,10 +181,10 @@
       "trim": "65 kWh Advance",
       "powertrain": "BEV",
       "segment": "Compact SUV",
-      "newPrice": 34995,
+      "newPrice": 31250,
       "nearlyNewPrice": 26995,
       "excellentDeal": 27000,
-      "fairDealMax": 29500,
+      "fairDealMax": 30000,
       "warrantyYears": 5,
       "warrantyMiles": 999999,
       "batteryWarrantyYears": 8,
@@ -210,7 +210,7 @@
       "serviceAnnual": 260,
       "taxAnnual": 195,
       "baseScore": 81.8,
-      "verdict": "Easy to park, efficient and well-supported, with attractive nearly-new pricing.",
+      "verdict": "Strong lower-cost mainstream choice with an unusually competitive current grant-adjusted OTR price, easy parking and solid support.",
       "biggestRisk": "Slower rapid charging than newer 800V-class rivals.",
       "sourceIds": [
         "hyundai-kona",
@@ -484,16 +484,16 @@
     {
       "id": "hyundai-kona",
       "name": "Hyundai UK Kona Electric",
-      "url": "https://www.hyundai.com/uk/en/models/kona-electric.html",
+      "url": "https://www.hyundai.com/uk/en/offers/new-cars/model/offer.KONA_Electric.html",
       "type": "Manufacturer pricing",
       "quality": "Primary",
       "refreshHours": 24,
       "lastChecked": "2026-08-28T12:00:00Z",
       "status": "current",
-      "expectedPrice": 34995,
+      "expectedPrice": 31250,
       "anchors": [
-        "KONA",
-        "Electric"
+        "KONA Electric Advance 65kWh",
+        "On The Road Price"
       ]
     },
     {
