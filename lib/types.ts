@@ -99,6 +99,32 @@ export type IntegrationStatus = {
   requiresCredentials: boolean;
 };
 
+export type LiveSafetyObservation = {
+  vehicleId: string;
+  sourceUrl: string;
+  checkedAt: string;
+  status: "live" | "fallback" | "failed";
+  stars?: number;
+  testYear?: number;
+  adultProtection?: number;
+  childProtection?: number;
+  vulnerableRoadUsers?: number;
+  safetyAssist?: number;
+  ratingExpired?: boolean;
+  note?: string;
+};
+
+export type LiveRecallObservation = {
+  vehicleId: string;
+  sourceUrl: string;
+  checkedAt: string;
+  status: "live" | "failed";
+  recallCount?: number;
+  modelMatched?: string;
+  year?: number;
+  note?: string;
+};
+
 export type LiveSnapshot = {
   generatedAt: string;
   market: {
@@ -116,6 +142,8 @@ export type LiveSnapshot = {
   vehicleObservations: LiveVehicleObservation[];
   sources: Source[];
   integrations: IntegrationStatus[];
+  safety: LiveSafetyObservation[];
+  recalls: LiveRecallObservation[];
   diagnostics: {
     liveSourceCount: number;
     fallbackSourceCount: number;
