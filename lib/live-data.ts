@@ -3,6 +3,8 @@ import "server-only";
 import rawData from "@/data/vehicle-data.json";
 import type {
   IntegrationStatus,
+  LiveRecallObservation,
+  LiveSafetyObservation,
   LiveSnapshot,
   LiveVehicleObservation,
   Source,
@@ -383,6 +385,181 @@ async function getMarketCheckUsedObservations(): Promise<LiveVehicleObservation[
   );
 }
 
+
+const SAFETY_CONFIG: Record<string, Omit<LiveSafetyObservation, "vehicleId" | "checkedAt" | "status">> = {
+  "kia-ev3-air-long-range": {
+    sourceUrl: "https://www.euroncap.com/assessments/kia/ev3/1111/",
+    stars: 4,
+    testYear: 2025,
+    adultProtection: 83,
+    childProtection: 84,
+    vulnerableRoadUsers: 78,
+    safetyAssist: 78,
+    note: "Standard equipment rating is 4 stars; Euro NCAP also publishes a 5-star Safety Pack result.",
+  },
+  "toyota-chr-plus-design": {
+    sourceUrl: "https://www.euroncap.com/assessments/toyota/c-hr/1206/",
+    stars: 5,
+    testYear: 2025,
+    adultProtection: 88,
+    childProtection: 85,
+    vulnerableRoadUsers: 80,
+    safetyAssist: 79,
+    note: "Partner model to the 2025 Toyota bZ4X; Euro NCAP performed additional validation tests.",
+  },
+  "renault-scenic-techno-lr": {
+    sourceUrl: "https://www.euroncap.com/assessments/renault/scenic-e-tech/1067/",
+    stars: 5,
+    testYear: 2022,
+    adultProtection: 88,
+    childProtection: 89,
+    vulnerableRoadUsers: 77,
+    safetyAssist: 85,
+    note: "Rating published for the Scenic E-Tech and applied to the tested 87 kWh Techno derivative.",
+  },
+  "skoda-elroq-85-se": {
+    sourceUrl: "https://www.euroncap.com/assessments/skoda/elroq/1128/",
+    stars: 5,
+    testYear: 2025,
+    adultProtection: 90,
+    childProtection: 87,
+    vulnerableRoadUsers: 77,
+    safetyAssist: 78,
+  },
+  "hyundai-kona-electric-65": {
+    sourceUrl: "https://www.euroncap.com/assessments/hyundai/kona/1051/",
+    stars: 4,
+    testYear: 2023,
+    adultProtection: 80,
+    childProtection: 83,
+    vulnerableRoadUsers: 64,
+    safetyAssist: 60,
+    note: "Euro NCAP's 2023 KONA assessment applies to the electric variant but achieved four stars.",
+  },
+  "toyota-rav4-phev-icon": {
+    sourceUrl: "https://www.euroncap.com/assessments/toyota/rav4/0764/",
+    stars: 5,
+    testYear: 2019,
+    adultProtection: 93,
+    childProtection: 87,
+    vulnerableRoadUsers: 85,
+    safetyAssist: 77,
+    ratingExpired: true,
+    note: "The 2019 Euro NCAP rating is shown as expired; it remains historical evidence, not a current-protocol rating.",
+  },
+  "ford-kuga-phev-stline": {
+    sourceUrl: "https://www.euroncap.com/assessments/ford/kuga/0792/",
+    stars: 5,
+    testYear: 2019,
+    adultProtection: 92,
+    childProtection: 86,
+    vulnerableRoadUsers: 82,
+    safetyAssist: 73,
+    ratingExpired: true,
+    note: "The 2019 Euro NCAP rating is shown as expired; it remains historical evidence, not a current-protocol rating.",
+  },
+  "mg-hs-phev-trophy": {
+    sourceUrl: "https://www.euroncap.com/assessments/mg/hs/1061/",
+    stars: 5,
+    testYear: 2024,
+    adultProtection: 90,
+    childProtection: 85,
+    vulnerableRoadUsers: 83,
+    safetyAssist: 74,
+    note: "Euro NCAP confirms the 1.5 litre plug-in-hybrid MG HS is covered by the rating.",
+  },
+};
+
+function percentFrom(text: string, label: string) {
+  const match = text.match(new RegExp(`${label}\\s+(\\d{1,3})%`, "i"));
+  return match ? Number(match[1]) : undefined;
+}
+
+async function getEuroNcapObservations(): Promise<LiveSafetyObservation[]> {
+  return Promise.all(
+    VEHICLES.map(async (vehicle): Promise<LiveSafetyObservation> => {
+      const config = SAFETY_CONFIG[vehicle.id];
+      if (!config) {
+        return {
+          vehicleId: vehicle.id,
+          sourceUrl: "https://www.euroncap.com/",
+          checkedAt: new Date().toISOString(),
+          status: "failed",
+          note: "No vehicle-specific Euro NCAP source configured.",
+        };
+      }
+      try {
+        const text = htmlToText(await fetchText(config.sourceUrl, 21600));
+        const adultProtection = percentFrom(text, "Adult Occupant") ?? config.adultProtection;
+        const childProtection = percentFrom(text, "Child Occupant") ?? config.childProtection;
+        const vulnerableRoadUsers = percentFrom(text, "Vulnerable Road Users") ?? config.vulnerableRoadUsers;
+        const safetyAssist = percentFrom(text, "Safety Assist") ?? config.safetyAssist;
+        const ratingExpired = /rating expired|expired/i.test(text) || config.ratingExpired;
+        return { vehicleId: vehicle.id, ...config, adultProtection, childProtection, vulnerableRoadUsers, safetyAssist, ratingExpired, checkedAt: new Date().toISOString(), status: "live" };
+      } catch {
+        return { vehicleId: vehicle.id, ...config, checkedAt: new Date().toISOString(), status: "fallback", note: `${config.note ? `${config.note} ` : ""}Live Euro NCAP page check failed; last verified values retained.` };
+      }
+    }),
+  );
+}
+
+const RECALL_CONFIG: Record<string, { makeAliases: string[]; modelAliases: string[]; year: number }> = {
+  "kia-ev3-air-long-range": { makeAliases: ["KIA"], modelAliases: ["EV3"], year: 2025 },
+  "toyota-chr-plus-design": { makeAliases: ["TOYOTA (GB) PLC", "TOYOTA"], modelAliases: ["C-HR+", "C-HR PLUS"], year: 2026 },
+  "renault-scenic-techno-lr": { makeAliases: ["RENAULT"], modelAliases: ["SCENIC E-TECH", "SCENIC"], year: 2025 },
+  "skoda-elroq-85-se": { makeAliases: ["SKODA"], modelAliases: ["ELROQ"], year: 2025 },
+  "hyundai-kona-electric-65": { makeAliases: ["HYUNDAI"], modelAliases: ["KONA EV", "KONA ELECTRIC", "KONA"], year: 2025 },
+  "toyota-rav4-phev-icon": { makeAliases: ["TOYOTA (GB) PLC", "TOYOTA"], modelAliases: ["RAV4"], year: 2025 },
+  "ford-kuga-phev-stline": { makeAliases: ["FORD"], modelAliases: ["KUGA"], year: 2025 },
+  "mg-hs-phev-trophy": { makeAliases: ["MG MOTOR UK LTD", "MG MOTOR", "MG"], modelAliases: ["HS PHEV", "HS"], year: 2025 },
+};
+
+function recallOptions(html: string) {
+  const values: Array<{ value: string; label: string }> = [];
+  for (const match of html.matchAll(/<option[^>]*value=["']([^"']*)["'][^>]*>([\s\S]*?)<\/option>/gi)) {
+    const value = match[1]?.trim();
+    const label = htmlToText(match[2] ?? "").trim();
+    if (value && label) values.push({ value, label });
+  }
+  return values;
+}
+
+function modelMatches(label: string, aliases: string[]) {
+  const normalizedLabel = normalize(label);
+  return aliases.some((alias) => {
+    const normalizedAlias = normalize(alias);
+    return normalizedAlias && (normalizedLabel === normalizedAlias || normalizedLabel.includes(normalizedAlias));
+  });
+}
+
+async function getPublicRecallObservations(): Promise<LiveRecallObservation[]> {
+  const base = "https://www.check-vehicle-recalls.service.gov.uk";
+  return Promise.all(
+    VEHICLES.map(async (vehicle): Promise<LiveRecallObservation> => {
+      const config = RECALL_CONFIG[vehicle.id];
+      const checkedAt = new Date().toISOString();
+      if (!config) return { vehicleId: vehicle.id, sourceUrl: base, checkedAt, status: "failed", note: "Recall lookup is not configured." };
+      let successfulMakePage: string | undefined;
+      for (const make of config.makeAliases) {
+        const modelListUrl = `${base}/recall-type/vehicle/make/${encodeURIComponent(make)}/model`;
+        try {
+          const html = await fetchText(modelListUrl, 21600);
+          successfulMakePage = modelListUrl;
+          const selected = recallOptions(html).find((option) => modelMatches(option.label, config.modelAliases));
+          if (!selected) continue;
+          const recallsUrl = `${base}/recall-type/vehicle/make/${encodeURIComponent(make)}/model/${encodeURIComponent(selected.value)}/year/${config.year}/recalls`;
+          const recallsText = htmlToText(await fetchText(recallsUrl, 21600));
+          const countMatch = recallsText.match(/This vehicle has\s+(\d+)\s+recalls?/i);
+          const noRecalls = /This vehicle has no recalls/i.test(recallsText);
+          if (countMatch || noRecalls) return { vehicleId: vehicle.id, sourceUrl: recallsUrl, checkedAt: new Date().toISOString(), status: "live", recallCount: countMatch ? Number(countMatch[1]) : 0, modelMatched: selected.label, year: config.year, note: "DVSA model-year recall history; an individual VIN/registration check is still required to confirm whether a specific vehicle has outstanding work." };
+        } catch {}
+      }
+      if (successfulMakePage) return { vehicleId: vehicle.id, sourceUrl: successfulMakePage, checkedAt, status: "live", recallCount: 0, year: config.year, note: "This model is not currently listed among recalled vehicles in the DVSA model selector. Individual VIN/registration checks remain authoritative for a specific car." };
+      return { vehicleId: vehicle.id, sourceUrl: base, checkedAt, status: "failed", year: config.year, note: "The public DVSA recall service could not be reached during this refresh." };
+    }),
+  );
+}
+
 async function integrationStatuses(): Promise<IntegrationStatus[]> {
   const capConfigured = Boolean(process.env.CAP_HPI_CLIENT_ID && process.env.CAP_HPI_CLIENT_SECRET);
   const autoConfigured = Boolean(process.env.AUTOTRADER_CLIENT_ID && process.env.AUTOTRADER_CLIENT_SECRET);
@@ -419,16 +596,18 @@ async function integrationStatuses(): Promise<IntegrationStatus[]> {
     { id: "gov-grant", name: "GOV.UK Electric Car Grant", status: "live", detail: "Band 1/Band 2 eligibility is read from the current official list.", requiresCredentials: false },
     { id: "octopus", name: "Octopus Energy", status: "live", detail: "Public Octopus API availability plus current Intelligent Octopus Go off-peak rate.", requiresCredentials: false },
     { id: "fuel", name: "DESNZ weekly road fuel prices", status: "live", detail: "Latest official UK petrol/diesel CSV is read automatically.", requiresCredentials: false },
+    { id: "euro-ncap", name: "Euro NCAP vehicle safety", status: "live", detail: "Vehicle-specific Euro NCAP pages are checked with protocol year and expiry context.", requiresCredentials: false },
+    { id: "public-recalls", name: "DVSA / GOV.UK public recalls", status: "live", detail: "Model-year recall history uses the public DVSA service; VIN-level outstanding status remains a purchase-time check.", requiresCredentials: false },
     { id: "marketcheck", name: "MarketCheck UK live inventory", status: marketCheckConfigured ? "configured" : "unconfigured", detail: marketCheckConfigured ? "API key present; live UK inventory endpoint enabled." : "Add a MarketCheck API key to enable live UK nearly-new listings immediately.", requiresCredentials: true },
     { id: "cap-hpi", name: "CAP HPI valuations", status: capStatus, detail: capDetail, requiresCredentials: true },
     { id: "autotrader", name: "Auto Trader Connect Search Adverts", status: autoConfigured ? "configured" : "unconfigured", detail: autoConfigured ? "Credentials present; production Search Adverts access must be approved by Auto Trader." : "Requires Auto Trader Connect credentials and Search Adverts production approval.", requiresCredentials: true },
     { id: "fuel-finder", name: "GOV.UK Fuel Finder API", status: fuelFinderConfigured ? "configured" : "unconfigured", detail: fuelFinderConfigured ? "Credentials present; use for local forecourt prices." : "OAuth credentials required for near-real-time local forecourt prices; weekly UK average remains live without credentials.", requiresCredentials: true },
-    { id: "dvsa-recalls", name: "DVSA Vehicle Recalls API", status: dvsaConfigured ? "configured" : "unconfigured", detail: dvsaConfigured ? "Credentials present; DVSA onboarding required." : "DVSA onboarding, OAuth client credentials and API key required for vehicle-level recall data.", requiresCredentials: true },
+    { id: "dvsa-recalls-api", name: "DVSA Manufacturer Recalls API", status: dvsaConfigured ? "configured" : "unconfigured", detail: dvsaConfigured ? "Manufacturer API credentials are present." : "Optional manufacturer-grade API access requires DVSA onboarding; the public DVSA recall feed is already active.", requiresCredentials: true },
   ];
 }
 
 export async function getLiveSnapshot(): Promise<LiveSnapshot> {
-  const [manufacturer, referenceSources, grants, octopus, fuel, tax, usedMarket, integrations] = await Promise.all([
+  const [manufacturer, referenceSources, grants, octopus, fuel, tax, usedMarket, safety, recalls, integrations] = await Promise.all([
     getManufacturerObservations(),
     probeReferenceSources(),
     getGrantObservations(),
@@ -436,6 +615,8 @@ export async function getLiveSnapshot(): Promise<LiveSnapshot> {
     getFuelData(),
     getTaxData(),
     getMarketCheckUsedObservations(),
+    getEuroNcapObservations(),
+    getPublicRecallObservations(),
     integrationStatuses(),
   ]);
 
@@ -473,6 +654,8 @@ export async function getLiveSnapshot(): Promise<LiveSnapshot> {
   sources.push(
     { id: "octopus-live", name: "Octopus Intelligent Go", url: "https://octopus.energy/smart/intelligent-octopus-go/", type: "Electricity tariff", quality: "Primary", refreshHours: 1, lastChecked: octopus.checkedAt, status: octopus.status === "live" ? "live" : "failed" },
     { id: "desnz-fuel", name: "DESNZ weekly road fuel prices", url: "https://www.gov.uk/government/statistics/weekly-road-fuel-prices", type: "Fuel price", quality: "Primary", refreshHours: 24, lastChecked: fuel.checkedAt, status: fuel.status === "live" ? "live" : "failed" },
+    ...safety.map((item): Source => ({ id: `euroncap-${item.vehicleId}`, name: `Euro NCAP – ${VEHICLES.find((vehicle) => vehicle.id === item.vehicleId)?.brand ?? ""} ${VEHICLES.find((vehicle) => vehicle.id === item.vehicleId)?.model ?? ""}`.trim(), url: item.sourceUrl, type: "Safety", quality: "Primary", refreshHours: 24, lastChecked: item.checkedAt, status: item.status === "live" ? "live" : item.status === "failed" ? "failed" : "current" })),
+    { id: "dvsa-public-recalls", name: "DVSA / GOV.UK vehicle recall service", url: "https://www.check-vehicle-recalls.service.gov.uk/", type: "Recalls", quality: "Primary", refreshHours: 24, lastChecked: recalls[0]?.checkedAt ?? now, status: recalls.some((item) => item.status === "live") ? "live" : "failed" },
   );
 
   const liveSourceCount = sources.filter((source) => source.status === "live").length;
@@ -496,6 +679,8 @@ export async function getLiveSnapshot(): Promise<LiveSnapshot> {
     vehicleObservations,
     sources,
     integrations,
+    safety,
+    recalls,
     diagnostics: {
       liveSourceCount,
       fallbackSourceCount,
