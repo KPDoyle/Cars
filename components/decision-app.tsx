@@ -619,6 +619,16 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
                 </div>
                 <div className="metric-grid compact"><div><span>Purchase</span><strong>{money(purchasePrice(winner, profile))}</strong></div><div><span>TCO</span><strong>{money(winnerTco.total)}</strong></div><div><span>Energy</span><strong>{money(annualEnergyCost(winner, profile).total)}/yr</strong></div><div><span>Exit</span><strong>{winnerExit.yearsFromPurchase.toFixed(1)} yrs</strong></div></div>
                 <button className="primary-button" onClick={() => changeView("dashboard")}>View full decision <ChevronRight size={16} /></button>
+                <div className="profile-ranking">
+                  <div className="profile-ranking-head"><span>Current top 3</span><small>Updates with every profile change</small></div>
+                  {ranked.slice(0, 3).map((vehicle, index) => (
+                    <div className="profile-ranking-row" key={vehicle.id}>
+                      <span>#{index + 1}</span>
+                      <div><strong>{vehicle.brand} {vehicle.model}</strong><small>{vehicle.trim}</small></div>
+                      <b>{personalisedScore(vehicle, profile).toFixed(1)}</b>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </section>
