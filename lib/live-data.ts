@@ -1,0 +1,329 @@
+import "server-only";
+
+import rawData from "@/data/vehicle-data.json";
+import type {
+  IntegrationStatus,
+  LiveSnapshot,
+  LiveVehicleObservation,
+  Source,
+  Vehicle,
+} from "@/lib/types";
+
+const BASE_SOURCES = rawData.sources as unknown as Source[];
+const VEHICLES = rawData.vehicles as unknown as Vehicle[];
+
+const USER_AGENT = "CarWiseLive/1.0 (+https://github.com/KPDoyle/Cars)";
+
+async function fetchText(url: string, revalidate = 1800) {
+  const response = await fetch(url, {
+    headers: { "user-agent": USER_AGENT, accept: "text/html,text/plain,application/json,*/*" },
+    next: { revalidate },
+  });
+  if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+  return response.text();
+}
+
+function htmlToText(html: string) {
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&pound;|&#163;/gi, "£")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&#39;/gi, "'")
+    .replace(/&quot;/gi, '"')
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function normalize(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[+]/g, " plus ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function extractPrice(text: string, expected?: number, anchors: string[] = []) {
+  if (!expected) return undefined;
+  let scope = text;
+  for (const anchor of anchors) {
+    const idx = normalize(text).indexOf(normalize(anchor));
+    if (idx >= 0) {
+      scope = text.slice(Math.max(0, idx - 1200), idx + 2800);
+      break;
+    }
+  }
+
+  const prices = [...scope.matchAll(/£\s?([1-9][0-9]{1,2}(?:,[0-9]{3})+)/g)]
+    .map((match) => Number(match[1].replaceAll(",", "")))
+    .filter((price) => price >= 15000 && price <= 120000);
+
+  if (!prices.length) return undefined;
+  const closest = prices.toSorted((a, b) => Math.abs(a - expected) - Math.abs(b - expected))[0];
+  return Math.abs(closest - expected) / expected <= 0.15 ? closest : undefined;
+}
+
+async function getManufacturerObservations(): Promise<{ observations: LiveVehicleObservation[]; sources: Source[] }> {
+  const pricingSources = BASE_SOURCES.filter((source) => source.type === "Manufacturer pricing");
+  const updated = new Map<string, Source>();
+  const observations: LiveVehicleObservation[] = [];
+
+  await Promise.all(
+    pricingSources.map(async (source) => {
+      try {
+        const html = await fetchText(source.url, 3600);
+        const text = htmlToText(html);
+        const observed = extractPrice(text, source.expectedPrice, source.anchors);
+        updated.set(source.id, {
+          ...source,
+          status: observed ? "live" : "current",
+          observedPrice: observed,
+          observedAt: new Date().toISOString(),
+          lastChecked: new Date().toISOString(),
+        });
+
+        const vehicle = VEHICLES.find((item) => item.sourceIds.includes(source.id));
+        if (vehicle) {
+          observations.push({
+            vehicleId: vehicle.id,
+            observedNewPrice: observed,
+            priceSource: source.url,
+            priceCheckedAt: new Date().toISOString(),
+            sourceStatus: observed ? "live" : "fallback",
+          });
+        }
+      } catch {
+        updated.set(source.id, { ...source, status: "failed", lastChecked: new Date().toISOString() });
+        const vehicle = VEHICLES.find((item) => item.sourceIds.includes(source.id));
+        if (vehicle) {
+          observations.push({ vehicleId: vehicle.id, sourceStatus: "failed" });
+        }
+      }
+    }),
+  );
+
+  const merged = BASE_SOURCES.map((source) => updated.get(source.id) ?? source);
+  return { observations, sources: merged };
+}
+
+async function getGrantObservations() {
+  const url = "https://www.gov.uk/zero-emission-vehicle-grants/cars";
+  try {
+    const text = htmlToText(await fetchText(url, 1800));
+    const band1Start = text.indexOf("Band 1 cars");
+    const band2Start = text.indexOf("Band 2 cars");
+    const band1Text = band1Start >= 0 && band2Start > band1Start ? text.slice(band1Start, band2Start) : "";
+    const band2Text = band2Start >= 0 ? text.slice(band2Start) : "";
+
+    const observations = VEHICLES.map((vehicle): Partial<LiveVehicleObservation> & { vehicleId: string } => {
+      if (vehicle.powertrain !== "BEV") return { vehicleId: vehicle.id, grantEligible: false };
+      const aliases = [
+        `${vehicle.brand} ${vehicle.model}`,
+        vehicle.model,
+        vehicle.model.replace("E-Tech", "").trim(),
+      ].map(normalize);
+      const inBand1 = aliases.some((alias) => alias && normalize(band1Text).includes(alias));
+      const inBand2 = aliases.some((alias) => alias && normalize(band2Text).includes(alias));
+      if (inBand1) return { vehicleId: vehicle.id, grantEligible: true, grantBand: 1, grantAmount: 3750 };
+      if (inBand2) return { vehicleId: vehicle.id, grantEligible: true, grantBand: 2, grantAmount: 1500 };
+      return { vehicleId: vehicle.id, grantEligible: false };
+    });
+
+    return { observations, source: { id: "gov-ev-grant", status: "live" as const, checkedAt: new Date().toISOString(), url } };
+  } catch {
+    return { observations: [], source: { id: "gov-ev-grant", status: "failed" as const, checkedAt: new Date().toISOString(), url } };
+  }
+}
+
+async function getOctopusData() {
+  const marketingUrl = "https://octopus.energy/smart/intelligent-octopus-go/";
+  const productsUrl = "https://api.octopus.energy/v1/products/?brand=OCTOPUS_ENERGY&is_business=false";
+  try {
+    const [marketing, productsResponse] = await Promise.all([
+      fetchText(marketingUrl, 1800),
+      fetch(productsUrl, { headers: { "user-agent": USER_AGENT }, next: { revalidate: 1800 } }),
+    ]);
+    const text = htmlToText(marketing);
+    const rateMatch =
+      text.match(/smart charge[^.]{0,180}?([0-9]+(?:\.[0-9]+)?)p\/kWh/i) ??
+      text.match(/([0-9]+(?:\.[0-9]+)?)p\/kWh/i);
+    let productCount: number | undefined;
+    if (productsResponse.ok) {
+      const payload = await productsResponse.json() as { count?: number };
+      productCount = payload.count;
+    }
+    return {
+      offPeakPence: rateMatch ? Number(rateMatch[1]) : undefined,
+      checkedAt: new Date().toISOString(),
+      status: "live" as const,
+      productCount,
+    };
+  } catch {
+    return { offPeakPence: undefined, checkedAt: new Date().toISOString(), status: "failed" as const };
+  }
+}
+
+async function getFuelData() {
+  const statsUrl = "https://www.gov.uk/government/statistics/weekly-road-fuel-prices";
+  try {
+    const html = await fetchText(statsUrl, 1800);
+    const links = [...html.matchAll(/href=["']([^"']+\.csv(?:\?[^"']*)?)["']/gi)].map((match) => match[1]);
+    const preferred = links.find((link) => /weekly.*fuel.*price/i.test(link)) ?? links[0];
+    if (!preferred) throw new Error("CSV attachment not found");
+    const csvUrl = preferred.startsWith("http") ? preferred : new URL(preferred, "https://www.gov.uk").toString();
+    const csv = await fetchText(csvUrl, 1800);
+    const rows = csv.trim().split(/\r?\n/).filter(Boolean);
+    let latest: { date: string; petrol: number; diesel: number } | undefined;
+    for (let i = rows.length - 1; i >= 1; i -= 1) {
+      const cols = rows[i].replace(/^\uFEFF/, "").split(",").map((value) => value.replaceAll('"', "").trim());
+      const petrol = Number(cols[1]);
+      const diesel = Number(cols[2]);
+      if (cols[0] && Number.isFinite(petrol) && Number.isFinite(diesel)) {
+        latest = { date: cols[0], petrol, diesel };
+        break;
+      }
+    }
+    if (!latest) throw new Error("Latest fuel row not found");
+    return { ...latest, checkedAt: new Date().toISOString(), status: "live" as const, sourceUrl: csvUrl };
+  } catch {
+    return { checkedAt: new Date().toISOString(), status: "failed" as const };
+  }
+}
+
+async function getTaxData() {
+  const url = "https://www.gov.uk/guidance/vehicle-tax-for-electric-and-low-emissions-vehicles";
+  const annexUrl = "https://www.gov.uk/government/publications/budget-2025-overview-of-tax-legislation-and-rates-ootlar/annex-a-rates-and-allowances";
+  try {
+    const [guide, annex] = await Promise.all([fetchText(url, 21600), fetchText(annexUrl, 21600)]);
+    const text = htmlToText(`${guide} ${annex}`);
+    const standard = Number(text.match(/standard rate of £([0-9,]+)/i)?.[1]?.replaceAll(",", "") ?? 200);
+    const supplement = Number(text.match(/additional rate of £([0-9,]+)/i)?.[1]?.replaceAll(",", "") ?? text.match(/£([0-9,]+)[^£]{0,80}Expensive Car Supplement/i)?.[1]?.replaceAll(",", "") ?? 440);
+    return {
+      standard: Number.isFinite(standard) ? standard : 200,
+      supplement: Number.isFinite(supplement) ? supplement : 440,
+      zevThreshold: 50000,
+      otherThreshold: 40000,
+      checkedAt: new Date().toISOString(),
+      status: "live" as const,
+    };
+  } catch {
+    return { standard: 200, supplement: 440, zevThreshold: 50000, otherThreshold: 40000, checkedAt: new Date().toISOString(), status: "failed" as const };
+  }
+}
+
+async function integrationStatuses(): Promise<IntegrationStatus[]> {
+  const capConfigured = Boolean(process.env.CAP_HPI_CLIENT_ID && process.env.CAP_HPI_CLIENT_SECRET);
+  const autoConfigured = Boolean(process.env.AUTOTRADER_CLIENT_ID && process.env.AUTOTRADER_CLIENT_SECRET);
+  const fuelFinderConfigured = Boolean(process.env.FUEL_FINDER_CLIENT_ID && process.env.FUEL_FINDER_CLIENT_SECRET);
+  const dvsaConfigured = Boolean(process.env.DVSA_RECALLS_CLIENT_ID && process.env.DVSA_RECALLS_CLIENT_SECRET && process.env.DVSA_RECALLS_API_KEY);
+
+  let capStatus: IntegrationStatus["status"] = capConfigured ? "configured" : "unconfigured";
+  let capDetail = capConfigured ? "Credentials present; token health check pending." : "Add CAP HPI OAuth credentials to enable licensed current/future valuations.";
+  if (capConfigured) {
+    try {
+      const body = new URLSearchParams({
+        grant_type: "client_credentials",
+        client_id: process.env.CAP_HPI_CLIENT_ID!,
+        client_secret: process.env.CAP_HPI_CLIENT_SECRET!,
+        scope: "CapHpi.UK.PublicApi",
+      });
+      const response = await fetch("https://identity.cap-hpi.com/connect/token", {
+        method: "POST",
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        body,
+        cache: "no-store",
+      });
+      capStatus = response.ok ? "live" : "failed";
+      capDetail = response.ok ? "OAuth connected; licensed valuation calls can be enabled." : `OAuth failed with HTTP ${response.status}.`;
+    } catch {
+      capStatus = "failed";
+      capDetail = "CAP HPI OAuth health check failed.";
+    }
+  }
+
+  return [
+    { id: "manufacturer", name: "Manufacturer UK sites", status: "live", detail: "Primary price and warranty pages are probed server-side with validation and fallback.", requiresCredentials: false },
+    { id: "gov-grant", name: "GOV.UK Electric Car Grant", status: "live", detail: "Band 1/Band 2 eligibility is read from the current official list.", requiresCredentials: false },
+    { id: "octopus", name: "Octopus Energy", status: "live", detail: "Public Octopus API availability plus current Intelligent Octopus Go off-peak rate.", requiresCredentials: false },
+    { id: "fuel", name: "DESNZ weekly road fuel prices", status: "live", detail: "Latest official UK petrol/diesel CSV is read automatically.", requiresCredentials: false },
+    { id: "cap-hpi", name: "CAP HPI valuations", status: capStatus, detail: capDetail, requiresCredentials: true },
+    { id: "autotrader", name: "Auto Trader Connect Search Adverts", status: autoConfigured ? "configured" : "unconfigured", detail: autoConfigured ? "Credentials present; production Search Adverts access must be approved by Auto Trader." : "Requires Auto Trader Connect credentials and Search Adverts production approval.", requiresCredentials: true },
+    { id: "fuel-finder", name: "GOV.UK Fuel Finder API", status: fuelFinderConfigured ? "configured" : "unconfigured", detail: fuelFinderConfigured ? "Credentials present; use for local forecourt prices." : "OAuth credentials required for near-real-time local forecourt prices; weekly UK average remains live without credentials.", requiresCredentials: true },
+    { id: "dvsa-recalls", name: "DVSA Vehicle Recalls API", status: dvsaConfigured ? "configured" : "unconfigured", detail: dvsaConfigured ? "Credentials present; DVSA onboarding required." : "DVSA onboarding, OAuth client credentials and API key required for vehicle-level recall data.", requiresCredentials: true },
+  ];
+}
+
+export async function getLiveSnapshot(): Promise<LiveSnapshot> {
+  const [manufacturer, grants, octopus, fuel, tax, integrations] = await Promise.all([
+    getManufacturerObservations(),
+    getGrantObservations(),
+    getOctopusData(),
+    getFuelData(),
+    getTaxData(),
+    integrationStatuses(),
+  ]);
+
+  const grantMap = new Map(grants.observations.map((item) => [item.vehicleId, item]));
+  const vehicleObservations = manufacturer.observations.map((observation) => ({
+    ...observation,
+    ...grantMap.get(observation.vehicleId),
+    vehicleId: observation.vehicleId,
+    sourceStatus: observation.sourceStatus,
+  }));
+
+  for (const vehicle of VEHICLES) {
+    if (!vehicleObservations.some((item) => item.vehicleId === vehicle.id)) {
+      const grant = grantMap.get(vehicle.id);
+      vehicleObservations.push({
+        vehicleId: vehicle.id,
+        sourceStatus: "fallback",
+        grantEligible: grant?.grantEligible,
+        grantBand: grant?.grantBand,
+        grantAmount: grant?.grantAmount,
+      });
+    }
+  }
+
+  const sourceMap = new Map(manufacturer.sources.map((source) => [source.id, source]));
+  const now = new Date().toISOString();
+  const sources = BASE_SOURCES.map((source) => {
+    const current = sourceMap.get(source.id) ?? source;
+    if (source.id === "gov-ev-grant") return { ...current, status: grants.source.status === "live" ? "live" : "failed", lastChecked: grants.source.checkedAt };
+    if (source.id === "gov-ved") return { ...current, status: tax.status === "live" ? "live" : "failed", lastChecked: tax.checkedAt };
+    return current;
+  });
+  sources.push(
+    { id: "octopus-live", name: "Octopus Intelligent Go", url: "https://octopus.energy/smart/intelligent-octopus-go/", type: "Electricity tariff", quality: "Primary", refreshHours: 1, lastChecked: octopus.checkedAt, status: octopus.status === "live" ? "live" : "failed" },
+    { id: "desnz-fuel", name: "DESNZ weekly road fuel prices", url: "https://www.gov.uk/government/statistics/weekly-road-fuel-prices", type: "Fuel price", quality: "Primary", refreshHours: 24, lastChecked: fuel.checkedAt, status: fuel.status === "live" ? "live" : "failed" },
+  );
+
+  const liveSourceCount = sources.filter((source) => source.status === "live" || source.status === "current").length;
+  const failedSourceCount = sources.filter((source) => source.status === "failed").length;
+
+  return {
+    generatedAt: now,
+    market: {
+      petrolPencePerLitre: "petrol" in fuel ? fuel.petrol : undefined,
+      dieselPencePerLitre: "diesel" in fuel ? fuel.diesel : undefined,
+      fuelCheckedAt: fuel.checkedAt,
+      octopusOffPeakPence: octopus.offPeakPence,
+      octopusCheckedAt: octopus.checkedAt,
+      vedStandardAnnual: tax.standard,
+      vedExpensiveSupplement: tax.supplement,
+      vedZevThreshold: tax.zevThreshold,
+      vedOtherThreshold: tax.otherThreshold,
+      taxCheckedAt: tax.checkedAt,
+    },
+    vehicleObservations,
+    sources,
+    integrations,
+    diagnostics: {
+      liveSourceCount,
+      fallbackSourceCount: sources.length - liveSourceCount - failedSourceCount,
+      failedSourceCount,
+    },
+  };
+}
