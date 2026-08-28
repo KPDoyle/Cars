@@ -554,3 +554,19 @@ td.positive span { display: block; font-size: 8px; color: #73a992; }
   .manual-deal-results { grid-template-columns: 1fr 1fr; }
   .public-searches > div { width: 100%; flex-basis: 100%; }
 }
+
+
+.profile-active {
+  display: inline-flex;
+  margin-top: 8px;
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.08);
+  color: #b9c7e2;
+  font-size: 8px;
+  font-weight: 700;
+}
+.profile-active.changed {
+  background: rgba(118, 226, 181, .13);
+  color: #a8e6c9;
+}
