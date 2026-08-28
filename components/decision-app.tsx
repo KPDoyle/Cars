@@ -324,8 +324,10 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
     <div className="app-shell">
       <aside className={classNames("sidebar", mobileOpen && "open")}>
         <div className="brand">
-          <div className="brand-mark"><CarFront size={21} /></div>
-          <div><strong>CarWise</strong><span>Decision intelligence</span></div>
+          <button className="brand-home" onClick={() => changeView("dashboard")} aria-label="Go to CarWise home">
+            <span className="brand-mark"><CarFront size={21} /></span>
+            <span className="brand-copy"><strong>CarWise</strong><span>Decision intelligence</span></span>
+          </button>
           <button className="mobile-close" onClick={() => setMobileOpen(false)} aria-label="Close menu"><X size={20} /></button>
         </div>
         <nav className="nav-list" aria-label="Primary navigation">
