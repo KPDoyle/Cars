@@ -26,6 +26,16 @@ The production server currently refreshes and validates:
 
 Every live observation carries a checked-at time and source status. If a source cannot be validated, the application keeps the reviewed fallback rather than silently substituting an ambiguous figure.
 
+## No-commercial-API production mode
+
+CarWise is designed to remain fully usable without paid automotive APIs.
+
+In this mode the core application uses public/official manufacturer, GOV.UK, Octopus, DESNZ, Euro NCAP and DVSA sources, plus reviewed nearly-new benchmarks from the study. The Deal Explorer also includes a manual listing checker: enter the asking price and mileage from any live advert and CarWise recalculates the deal band and ownership cost immediately.
+
+Public search links are provided for Auto Trader, Motors, CarGurus and manufacturer approved-used inventory without scraping or requiring API credentials.
+
+Commercial integrations such as MarketCheck, CAP HPI, Auto Trader Connect and Fuel Finder are optional enrichments. Their absence does not disable rankings, TCO, comparisons, safety/recall checks, buyer profiling or deal assessment.
+
 ## Credential-gated integrations
 
 The code paths are already present; these become live when the relevant provider credentials are added to Vercel.
