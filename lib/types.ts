@@ -77,6 +77,12 @@ export type BuyerProfile = {
 export type LiveVehicleObservation = {
   vehicleId: string;
   observedNewPrice?: number;
+  observedUsedMedian?: number;
+  observedUsedMin?: number;
+  observedUsedMax?: number;
+  observedUsedCount?: number;
+  observedUsedMilesMedian?: number;
+  usedCheckedAt?: string;
   priceSource?: string;
   priceCheckedAt?: string;
   grantBand?: 1 | 2;
