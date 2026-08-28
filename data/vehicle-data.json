@@ -268,7 +268,7 @@
       "trim": "ST-Line",
       "powertrain": "PHEV",
       "segment": "Family SUV",
-      "newPrice": 39995,
+      "newPrice": 39320,
       "nearlyNewPrice": 30995,
       "excellentDeal": 31000,
       "fairDealMax": 34000,
@@ -298,7 +298,7 @@
       "serviceAnnual": 455,
       "taxAnnual": 620,
       "baseScore": 74.5,
-      "verdict": "Good used-value PHEV but its real-world electric range is borderline for the full 30–40 mile journey profile.",
+      "verdict": "Good-value mainstream PHEV with useful flexibility, but its real-world electric range is borderline for the full 30–40 mile journey profile.",
       "biggestRisk": "Short warranty and regular engine use on colder 40-mile journeys.",
       "sourceIds": [
         "ford-kuga",
@@ -312,7 +312,7 @@
       "trim": "Trophy",
       "powertrain": "PHEV",
       "segment": "Family SUV",
-      "newPrice": 34595,
+      "newPrice": 34995,
       "nearlyNewPrice": 29995,
       "excellentDeal": 29500,
       "fairDealMax": 31500,
@@ -342,7 +342,7 @@
       "serviceAnnual": 440,
       "taxAnnual": 620,
       "baseScore": 77.5,
-      "verdict": "Strong purchase price, electric range and warranty, but depreciation risk needs close monitoring.",
+      "verdict": "Strong purchase price, long electric range and useful warranty, but depreciation and source confidence still need closer monitoring than the leaders.",
       "biggestRisk": "Residual-value risk is higher than the strongest Japanese and Korean alternatives.",
       "sourceIds": [
         "mg-hs",
@@ -390,7 +390,6 @@
       "refreshHours": 24,
       "lastChecked": "2026-08-28T12:00:00Z",
       "status": "current",
-      "expectedPrice": 36150,
       "anchors": [
         "C-HR+",
         "Design",
@@ -509,16 +508,16 @@
     {
       "id": "ford-kuga",
       "name": "Ford UK Kuga",
-      "url": "https://www.ford.co.uk/cars/kuga",
+      "url": "https://www.ford.co.uk/cars/kuga/pricelist",
       "type": "Manufacturer pricing",
       "quality": "Primary",
       "refreshHours": 24,
       "lastChecked": "2026-08-28T12:00:00Z",
       "status": "current",
-      "expectedPrice": 39995,
       "anchors": [
         "Kuga",
-        "Plug-in"
+        "Plug-in Hybrid",
+        "ST-Line"
       ]
     },
     {
@@ -534,16 +533,16 @@
     {
       "id": "mg-hs",
       "name": "MG UK HS Plug-in Hybrid",
-      "url": "https://www.mg.co.uk/new-cars/mg-hs",
-      "type": "Manufacturer pricing",
-      "quality": "Primary",
+      "url": "https://www.invictamotors.co.uk/mg/new-cars/hs-plug-in-hybrid/trophy",
+      "type": "Dealer pricing",
+      "quality": "Dealer",
       "refreshHours": 24,
       "lastChecked": "2026-08-28T12:00:00Z",
       "status": "current",
-      "expectedPrice": 34595,
+      "expectedPrice": 34995,
       "anchors": [
-        "HS",
-        "Plug-in"
+        "HS Plug-in Hybrid",
+        "Trophy"
       ]
     },
     {
