@@ -289,10 +289,10 @@ export async function getLiveSnapshot(): Promise<LiveSnapshot> {
 
   const sourceMap = new Map(manufacturer.sources.map((source) => [source.id, source]));
   const now = new Date().toISOString();
-  const sources = BASE_SOURCES.map((source) => {
+  const sources: Source[] = BASE_SOURCES.map((source): Source => {
     const current = sourceMap.get(source.id) ?? source;
-    if (source.id === "gov-ev-grant") return { ...current, status: grants.source.status === "live" ? "live" : "failed", lastChecked: grants.source.checkedAt };
-    if (source.id === "gov-ved") return { ...current, status: tax.status === "live" ? "live" : "failed", lastChecked: tax.checkedAt };
+    if (source.id === "gov-ev-grant") return { ...current, status: grants.source.status === "live" ? "live" as const : "failed" as const, lastChecked: grants.source.checkedAt };
+    if (source.id === "gov-ved") return { ...current, status: tax.status === "live" ? "live" as const : "failed" as const, lastChecked: tax.checkedAt };
     return current;
   });
   sources.push(
