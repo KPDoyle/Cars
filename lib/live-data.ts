@@ -109,6 +109,37 @@ async function getManufacturerObservations(): Promise<{ observations: LiveVehicl
   return { observations, sources: merged };
 }
 
+async function probeReferenceSources(): Promise<Source[]> {
+  const skip = new Set([
+    ...BASE_SOURCES.filter((source) => source.type === "Manufacturer pricing").map((source) => source.id),
+    "gov-ev-grant",
+    "gov-ved",
+  ]);
+  const targets = BASE_SOURCES.filter((source) => !skip.has(source.id));
+
+  return Promise.all(
+    targets.map(async (source): Promise<Source> => {
+      try {
+        const html = await fetchText(source.url, Math.max(1800, source.refreshHours * 3600));
+        const text = htmlToText(html);
+        const anchors = source.anchors ?? [];
+        const anchorsPresent = anchors.length === 0 || anchors.every((anchor) => normalize(text).includes(normalize(anchor)));
+        return {
+          ...source,
+          lastChecked: new Date().toISOString(),
+          status: anchorsPresent ? "live" : "changed",
+        };
+      } catch {
+        return {
+          ...source,
+          lastChecked: new Date().toISOString(),
+          status: "failed",
+        };
+      }
+    }),
+  );
+}
+
 async function getGrantObservations() {
   const url = "https://www.gov.uk/zero-emission-vehicle-grants/cars";
   try {
@@ -307,8 +338,9 @@ async function integrationStatuses(): Promise<IntegrationStatus[]> {
 }
 
 export async function getLiveSnapshot(): Promise<LiveSnapshot> {
-  const [manufacturer, grants, octopus, fuel, tax, integrations] = await Promise.all([
+  const [manufacturer, referenceSources, grants, octopus, fuel, tax, integrations] = await Promise.all([
     getManufacturerObservations(),
+    probeReferenceSources(),
     getGrantObservations(),
     getOctopusData(),
     getFuelData(),
@@ -338,6 +370,7 @@ export async function getLiveSnapshot(): Promise<LiveSnapshot> {
   }
 
   const sourceMap = new Map(manufacturer.sources.map((source) => [source.id, source]));
+  for (const source of referenceSources) sourceMap.set(source.id, source);
   const now = new Date().toISOString();
   const sources: Source[] = BASE_SOURCES.map((source): Source => {
     const current = sourceMap.get(source.id) ?? source;
@@ -350,8 +383,9 @@ export async function getLiveSnapshot(): Promise<LiveSnapshot> {
     { id: "desnz-fuel", name: "DESNZ weekly road fuel prices", url: "https://www.gov.uk/government/statistics/weekly-road-fuel-prices", type: "Fuel price", quality: "Primary", refreshHours: 24, lastChecked: fuel.checkedAt, status: fuel.status === "live" ? "live" : "failed" },
   );
 
-  const liveSourceCount = sources.filter((source) => source.status === "live" || source.status === "current").length;
+  const liveSourceCount = sources.filter((source) => source.status === "live").length;
   const failedSourceCount = sources.filter((source) => source.status === "failed").length;
+  const fallbackSourceCount = sources.filter((source) => source.status !== "live" && source.status !== "failed").length;
 
   return {
     generatedAt: now,
@@ -372,7 +406,7 @@ export async function getLiveSnapshot(): Promise<LiveSnapshot> {
     integrations,
     diagnostics: {
       liveSourceCount,
-      fallbackSourceCount: sources.length - liveSourceCount - failedSourceCount,
+      fallbackSourceCount,
       failedSourceCount,
     },
   };
