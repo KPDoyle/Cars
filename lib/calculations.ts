@@ -94,28 +94,14 @@ function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
 }
 
-const referenceBuyerProfile: BuyerProfile = {
-  budget: 50000,
-  annualMiles: 8000,
-  typicalJourney: 35,
-  electricityPence: 8,
-  petrolPencePerLitre: 144,
-  chargeDiscipline: 90,
-  ownershipYears: 5,
-  purchaseMode: "nearly-new",
-  warrantyWeight: 15,
-  depreciationWeight: 20,
-  comfortWeight: 10,
-};
-
-function budgetFit(vehicle: Vehicle, profile: BuyerProfile) {
+function buyerBudgetFit(vehicle: Vehicle, profile: BuyerProfile) {
   const price = purchasePrice(vehicle, profile);
-  const gap = profile.budget - price;
-  if (gap >= 0) return clamp(gap / Math.max(6000, profile.budget * 0.25), 0, 1);
-  return clamp(gap / 8000, -1.5, 0);
+  if (price > profile.budget) return 0;
+  const headroom = (profile.budget - price) / Math.max(profile.budget * 0.35, 1);
+  return 75 + (25 * clamp(headroom, 0, 1));
 }
 
-function effectiveWarrantyFit(vehicle: Vehicle, profile: BuyerProfile) {
+function buyerWarrantyFit(vehicle: Vehicle, profile: BuyerProfile) {
   const ageAtPurchase = profile.purchaseMode === "nearly-new" ? 0.75 : 0;
   const mileageAtPurchase = profile.annualMiles * ageAtPurchase;
   const remainingMileage = vehicle.warrantyMiles >= 900000
@@ -126,57 +112,78 @@ function effectiveWarrantyFit(vehicle: Vehicle, profile: BuyerProfile) {
     : remainingMileage / Math.max(profile.annualMiles, 1);
   const remainingCalendarYears = Math.max(0, vehicle.warrantyYears - ageAtPurchase);
   const effectiveWarrantyYears = Math.min(remainingCalendarYears, mileageLimitedYears);
-  const desiredWarrantyYears = profile.ownershipYears + 1.5;
-  return clamp((effectiveWarrantyYears - desiredWarrantyYears) / 3, -1, 1);
+  const desiredCoverage = profile.ownershipYears + 1.5;
+  return clamp((effectiveWarrantyYears / Math.max(desiredCoverage, 1)) * 100, 0, 100);
 }
 
-function depreciationFit(vehicle: Vehicle) {
-  const riskFit = vehicle.residualRisk === "Low" ? 1 : vehicle.residualRisk === "Medium" ? 0.25 : -1;
-  const residualFit = clamp((vehicle.fiveYearResidualPct - 40) / 10, -1, 1);
-  return clamp((riskFit * 0.6) + (residualFit * 0.4), -1, 1);
+function buyerDepreciationFit(vehicle: Vehicle) {
+  const riskBase = vehicle.residualRisk === "Low" ? 92 : vehicle.residualRisk === "Medium" ? 72 : 45;
+  return clamp(riskBase + ((vehicle.fiveYearResidualPct - 40) * 1.2), 25, 100);
 }
 
-function runningCostFit(vehicle: Vehicle, profile: BuyerProfile) {
-  const energy = annualEnergyCost(vehicle, profile).total;
-  const pencePerMile = (energy / Math.max(1, profile.annualMiles)) * 100;
-  return clamp((10 - pencePerMile) / 8, -1, 1);
+function buyerRunningCostFit(vehicle: Vehicle, profile: BuyerProfile) {
+  const annual = annualEnergyCost(vehicle, profile).total;
+  const pencePerMile = (annual / Math.max(profile.annualMiles, 1)) * 100;
+  return clamp(110 - (pencePerMile * 5.5), 20, 100);
 }
 
-function journeyFit(vehicle: Vehicle, profile: BuyerProfile) {
+function buyerJourneyFit(vehicle: Vehicle, profile: BuyerProfile) {
   if (vehicle.powertrain === "PHEV") {
-    return clamp((electricShare(vehicle, profile) - 0.7) / 0.3, -1, 1);
+    return clamp(45 + (electricShare(vehicle, profile) * 55), 25, 100);
   }
-  const winterCoverage = vehicle.winterElectricMiles / Math.max(profile.typicalJourney, 1);
-  return clamp((winterCoverage - 2) / 3, -1, 1);
+  const winterRangeShare = profile.typicalJourney / Math.max(vehicle.winterElectricMiles, 1);
+  return clamp(110 - (winterRangeShare * 80), 25, 100);
 }
 
-function longHoldPenalty(vehicle: Vehicle, profile: BuyerProfile) {
-  if (profile.ownershipYears <= 5 || vehicle.residualRisk === "Low") return 0;
-  return (profile.ownershipYears - 5) * (vehicle.residualRisk === "High" ? 1.8 : 0.8);
+function buyerStrategyFit(vehicle: Vehicle, profile: BuyerProfile) {
+  if (profile.purchaseMode === "new") {
+    return clamp(90 - (vehicle.residualRisk === "High" ? 15 : vehicle.residualRisk === "Medium" ? 6 : 0), 50, 100);
+  }
+  const firstOwnerSaving = (vehicle.newPrice - vehicle.nearlyNewPrice) / Math.max(vehicle.newPrice, 1);
+  return clamp(60 + (firstOwnerSaving * 180), 50, 100);
 }
 
 export function personalisedScore(vehicle: Vehicle, profile: BuyerProfile) {
-  // The published study score is the anchor. Buyer controls apply deltas from
-  // that study profile, so the page reacts materially without double-counting
-  // the factors already embedded in baseScore.
-  let score = vehicle.baseScore;
+  // 30% preserves the underlying study evidence; 70% is recalculated from
+  // the active buyer profile so changing the profile can genuinely change
+  // the recommended vehicle rather than merely nudging a fixed ranking.
+  const budgetFit = buyerBudgetFit(vehicle, profile);
+  const warrantyFit = buyerWarrantyFit(vehicle, profile);
+  const depreciationFit = buyerDepreciationFit(vehicle);
+  const comfortFit = vehicle.comfortScore;
+  const runningCostFit = buyerRunningCostFit(vehicle, profile);
+  const journeyFit = buyerJourneyFit(vehicle, profile);
+  const strategyFit = buyerStrategyFit(vehicle, profile);
 
-  score += (budgetFit(vehicle, profile) - budgetFit(vehicle, referenceBuyerProfile)) * 6;
+  const weights = {
+    budget: 25,
+    warranty: profile.warrantyWeight,
+    depreciation: profile.depreciationWeight,
+    comfort: profile.comfortWeight,
+    running: 10 + clamp(((profile.annualMiles - 8000) / 17000) * 10, 0, 10),
+    journey: 10,
+    strategy: 8,
+  };
 
-  const warrantyNow = effectiveWarrantyFit(vehicle, profile) * profile.warrantyWeight;
-  const warrantyReference = effectiveWarrantyFit(vehicle, referenceBuyerProfile) * referenceBuyerProfile.warrantyWeight;
-  score += (warrantyNow - warrantyReference) * 0.32;
+  const totalWeight = Object.values(weights).reduce((sum, weight) => sum + weight, 0);
+  const dynamicFit = (
+    (budgetFit * weights.budget)
+    + (warrantyFit * weights.warranty)
+    + (depreciationFit * weights.depreciation)
+    + (comfortFit * weights.comfort)
+    + (runningCostFit * weights.running)
+    + (journeyFit * weights.journey)
+    + (strategyFit * weights.strategy)
+  ) / totalWeight;
 
-  const depFit = depreciationFit(vehicle);
-  score += depFit * (profile.depreciationWeight - referenceBuyerProfile.depreciationWeight) * 0.22;
+  let score = (vehicle.baseScore * 0.30) + (dynamicFit * 0.70);
 
-  const comfortFit = clamp((vehicle.comfortScore - 85) / 10, -1, 1);
-  score += comfortFit * (profile.comfortWeight - referenceBuyerProfile.comfortWeight) * 0.18;
-
-  score += (runningCostFit(vehicle, profile) - runningCostFit(vehicle, referenceBuyerProfile)) * 5;
-  score += (journeyFit(vehicle, profile) - journeyFit(vehicle, referenceBuyerProfile)) * 4;
-
-  score -= longHoldPenalty(vehicle, profile) - longHoldPenalty(vehicle, referenceBuyerProfile);
+  // Maximum budget behaves like a real constraint. A vehicle over budget can
+  // still be seen in comparisons, but is strongly penalised in recommendations.
+  const price = purchasePrice(vehicle, profile);
+  if (price > profile.budget) {
+    score -= Math.min(25, 5 + (((price - profile.budget) / 1000) * 4));
+  }
 
   return Math.max(0, Math.min(100, score));
 }
