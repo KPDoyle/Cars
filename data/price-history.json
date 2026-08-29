@@ -1,0 +1,44 @@
+[
+  {
+    "checkedAt": "2026-08-29T01:44:49.338Z",
+    "sourceId": "kia-ev3-price",
+    "sourceName": "Kia UK EV3 pricing",
+    "price": 34555,
+    "url": "https://www.kia.com/uk/new-cars/ev3/pricing/"
+  },
+  {
+    "checkedAt": "2026-08-29T01:44:49.338Z",
+    "sourceId": "toyota-chrplus",
+    "sourceName": "Toyota UK C-HR+",
+    "price": 36995,
+    "url": "https://www.toyota.co.uk/new-cars/c-hr-plus"
+  },
+  {
+    "checkedAt": "2026-08-29T01:44:49.338Z",
+    "sourceId": "toyota-rav4",
+    "sourceName": "Toyota UK RAV4",
+    "price": 43845,
+    "url": "https://www.toyota.co.uk/new-cars/rav4"
+  },
+  {
+    "checkedAt": "2026-08-29T01:44:49.338Z",
+    "sourceId": "renault-scenic",
+    "sourceName": "Renault UK Scenic E-Tech",
+    "price": 33245,
+    "url": "https://www.renault.co.uk/electric-vehicles/scenic/prices-offers.html?gradeCode=ENS_MDL2P1SERIELIM2"
+  },
+  {
+    "checkedAt": "2026-08-29T01:44:49.338Z",
+    "sourceId": "skoda-elroq",
+    "sourceName": "Skoda UK Elroq",
+    "price": 34870,
+    "url": "https://www.skoda.co.uk/new-cars/elroq/elroq"
+  },
+  {
+    "checkedAt": "2026-08-29T01:44:49.338Z",
+    "sourceId": "mg-hs",
+    "sourceName": "MG UK HS Plug-in Hybrid",
+    "price": 34995,
+    "url": "https://www.invictamotors.co.uk/mg/new-cars/hs-plug-in-hybrid/trophy"
+  }
+]
