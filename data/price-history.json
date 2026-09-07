@@ -40,5 +40,13 @@
     "sourceName": "MG UK HS Plug-in Hybrid",
     "price": 34995,
     "url": "https://www.invictamotors.co.uk/mg/new-cars/hs-plug-in-hybrid/trophy"
+  },
+  {
+    "checkedAt": "2026-09-07T04:39:07.307Z",
+    "sourceId": "toyota-chrplus",
+    "sourceName": "Toyota UK C-HR+",
+    "price": 36150,
+    "previousPrice": 36995,
+    "url": "https://www.toyota.co.uk/new-cars/c-hr-plus"
   }
 ]
