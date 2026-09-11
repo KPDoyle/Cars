@@ -80,5 +80,13 @@
     "price": 36150,
     "previousPrice": 36995,
     "url": "https://www.toyota.co.uk/new-cars/c-hr-plus"
+  },
+  {
+    "checkedAt": "2026-09-11T20:57:05.167Z",
+    "sourceId": "toyota-chrplus",
+    "sourceName": "Toyota UK C-HR+",
+    "price": 36995,
+    "previousPrice": 36150,
+    "url": "https://www.toyota.co.uk/new-cars/c-hr-plus"
   }
 ]
