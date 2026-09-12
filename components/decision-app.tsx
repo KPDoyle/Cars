@@ -34,6 +34,7 @@ import {
   money2,
   personalisedScore,
   purchasePrice,
+  researchBaselineScore,
   tco,
   warrantyExit,
 } from "@/lib/calculations";
@@ -67,6 +68,20 @@ const nav: { id: View; label: string; icon: typeof LayoutDashboard }[] = [
   { id: "model", label: "Decision model", icon: Settings2 },
   { id: "data", label: "Data monitor", icon: Database },
   { id: "methodology", label: "Method", icon: Info },
+];
+
+const researchWeightRows: Array<{ key: keyof DecisionModel; label: string; original: number }> = [
+  { key: "baselineValueWeight", label: "Purchase price / value", original: 20 },
+  { key: "baselineDepreciationWeight", label: "Depreciation / resale", original: 20 },
+  { key: "baselineWarrantyWeight", label: "Warranty", original: 15 },
+  { key: "baselineReliabilityWeight", label: "Reliability / support", original: 10 },
+  { key: "baselineComfortWeight", label: "Comfort / quality", original: 10 },
+  { key: "baselinePracticalityWeight", label: "Practicality", original: 8 },
+  { key: "baselineRunningCostWeight", label: "Running costs", original: 7 },
+  { key: "baselineRangeWeight", label: "Range / flexibility", original: 4 },
+  { key: "baselineChargingWeight", label: "Charging", original: 3 },
+  { key: "baselineSafetyWeight", label: "Safety", original: 2 },
+  { key: "baselineTechnologyWeight", label: "Technology", original: 1 },
 ];
 
 function classNames(...items: Array<string | false | undefined>) {
@@ -274,7 +289,9 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
     + decisionModel.runningCostWeight
     + decisionModel.journeyWeight
     + decisionModel.strategyWeight;
+  const baselineWeightTotal = researchWeightRows.reduce((sum, item) => sum + decisionModel[item.key], 0);
   const currentWinnerScore = personalisedScore(winner, profile, decisionModel);
+  const currentWinnerResearchScore = researchBaselineScore(winner, decisionModel);
   const studyScoreForCurrentWinner = personalisedScore(winner, studyProfile, decisionModel);
   const scoreDeltaFromStudy = currentWinnerScore - studyScoreForCurrentWinner;
   const manualDealVehicle = liveVehicles.find((vehicle) => vehicle.id === manualDealVehicleId) ?? liveVehicles[0];
@@ -382,7 +399,7 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
         <div className="sidebar-status">
           <div className="status-head"><Activity size={15} /><span>Research engine</span></div>
           <strong>Configurable model</strong>
-          <p>Public UK data, buyer assumptions and a configurable scoring model drive the live recommendation.</p>
+          <p>Public UK data, buyer assumptions and a configurable research baseline drive the live recommendation.</p>
           <div className="status-row"><span className="dot live" /> Public-data mode active</div>
         </div>
       </aside>
@@ -460,7 +477,7 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
                 </div>
                 <div className="decision-card">
                   <span className="decision-icon"><Settings2 size={20} /></span>
-                  <div><span>Model blend</span><strong>{decisionModel.studyEvidenceWeight}% study / {100 - decisionModel.studyEvidenceWeight}% buyer</strong><p>You can change the scoring logic from the Decision model page.</p></div>
+                  <div><span>Model blend</span><strong>{decisionModel.studyEvidenceWeight}% research / {100 - decisionModel.studyEvidenceWeight}% buyer</strong><p>The research baseline itself is now configurable from the Decision model page.</p></div>
                 </div>
               </div>
             </div>
@@ -482,7 +499,7 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
 
             <div className="insight-grid">
               <div className="insight-card"><span className="mini-icon"><BadgePoundSterling size={18} /></span><div><span>Energy advantage</span><strong>{money(annualEnergyCost(bevRanked[0], profile).total)}/yr</strong><p>Modelled home-charging cost for the leading BEV at {profile.electricityPence}p/kWh.</p></div></div>
-              <div className="insight-card"><span className="mini-icon"><Settings2 size={18} /></span><div><span>Decision model</span><strong>{modelChangeCount ? `${modelChangeCount} custom settings` : "Default model"}</strong><p>Engine weights are normalised automatically, so they do not need to add to 100.</p></div></div>
+              <div className="insight-card"><span className="mini-icon"><Settings2 size={18} /></span><div><span>Decision model</span><strong>{modelChangeCount ? `${modelChangeCount} custom settings` : "Default model"}</strong><p>The 100-point research baseline and buyer-fit layer are both configurable.</p></div></div>
               <div className="insight-card"><span className="mini-icon"><TriangleAlert size={18} /></span><div><span>Biggest market risk</span><strong>EV price compression</strong><p>Manufacturer cuts can reduce both the new price and the resale value of existing cars.</p></div></div>
             </div>
           </section>
@@ -678,16 +695,51 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
 
         {view === "model" ? (
           <section className="page">
-            <PageTitle eyebrow="Configure the engine" title="Decision model" description="Control how CarWise converts the research evidence and buyer profile into a recommendation. Changes update every ranking immediately and are saved in this browser." />
+            <PageTitle eyebrow="Configure the engine" title="Decision model" description="Control the 100-point research baseline, the research-vs-buyer blend and the live buyer-fit scoring rules. Changes update every ranking immediately and are saved in this browser." />
+
+            <div className="section-head">
+              <div><p className="eyebrow">Layer 1</p><h2>100-point research baseline</h2><p>Change the original study weighting itself. CarWise normalises the active weights to 100 automatically.</p></div>
+            </div>
+            <div className="profile-layout">
+              {[
+                ["Value & ownership", researchWeightRows.slice(0, 3)],
+                ["Quality & usability", researchWeightRows.slice(3, 6)],
+                ["Efficiency & flexibility", researchWeightRows.slice(6, 9)],
+                ["Risk & technology", researchWeightRows.slice(9, 11)],
+              ].map(([title, rows]) => (
+                <div className="settings-card" key={title as string}>
+                  <h3>{title as string}</h3>
+                  {(rows as typeof researchWeightRows).map((item) => (
+                    <RangeField
+                      key={item.key}
+                      label={`${item.label} · original ${item.original}`}
+                      value={decisionModel[item.key]}
+                      min={0}
+                      max={40}
+                      step={1}
+                      suffix=" pts"
+                      onChange={(value) => changeDecisionModel(item.key, value)}
+                    />
+                  ))}
+                  {title === "Risk & technology" ? (
+                    <div className="assumption-note"><Info size={17} /><p>Raw weight total: <strong>{baselineWeightTotal}</strong>. The engine automatically rescales these values proportionally to a 100-point baseline, so the total does not have to equal 100 while you edit.</p></div>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+
+            <div className="section-head model-section-head">
+              <div><p className="eyebrow">Layer 2</p><h2>Research vs buyer-fit model</h2><p>Choose how much the configured research baseline contributes to the final recommendation, then tune the personalised scoring layer.</p></div>
+            </div>
             <div className="profile-layout">
               <div className="settings-card">
                 <h3>Evidence blend</h3>
-                <RangeField label="Original study influence" value={decisionModel.studyEvidenceWeight} min={0} max={100} step={5} suffix="%" onChange={(value) => changeDecisionModel("studyEvidenceWeight", value)} />
-                <div className="assumption-note"><Settings2 size={17} /><p><strong>{100 - decisionModel.studyEvidenceWeight}%</strong> of the score is currently driven by the live buyer-fit model. The remaining <strong>{decisionModel.studyEvidenceWeight}%</strong> preserves the original study evidence.</p></div>
+                <RangeField label="Configured research baseline influence" value={decisionModel.studyEvidenceWeight} min={0} max={100} step={5} suffix="%" onChange={(value) => changeDecisionModel("studyEvidenceWeight", value)} />
+                <div className="assumption-note"><Settings2 size={17} /><p><strong>{decisionModel.studyEvidenceWeight}%</strong> of the final score comes from your configured research baseline. The remaining <strong>{100 - decisionModel.studyEvidenceWeight}%</strong> comes from the live buyer-fit model.</p></div>
               </div>
 
               <div className="settings-card">
-                <h3>Core factor weights</h3>
+                <h3>Core buyer-fit weights</h3>
                 <RangeField label="Budget fit" value={decisionModel.budgetWeight} min={0} max={40} step={1} suffix="" onChange={(value) => changeDecisionModel("budgetWeight", value)} />
                 <RangeField label="Warranty fit" value={decisionModel.warrantyWeight} min={0} max={40} step={1} suffix="" onChange={(value) => changeDecisionModel("warrantyWeight", value)} />
                 <RangeField label="Depreciation / residual" value={decisionModel.depreciationWeight} min={0} max={40} step={1} suffix="" onChange={(value) => changeDecisionModel("depreciationWeight", value)} />
@@ -699,7 +751,7 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
                 <RangeField label="Running cost" value={decisionModel.runningCostWeight} min={0} max={30} step={1} suffix="" onChange={(value) => changeDecisionModel("runningCostWeight", value)} />
                 <RangeField label="Journey / range fit" value={decisionModel.journeyWeight} min={0} max={30} step={1} suffix="" onChange={(value) => changeDecisionModel("journeyWeight", value)} />
                 <RangeField label="New vs nearly-new strategy" value={decisionModel.strategyWeight} min={0} max={25} step={1} suffix="" onChange={(value) => changeDecisionModel("strategyWeight", value)} />
-                <div className="assumption-note"><Info size={17} /><p>Weights are normalised automatically. A value of 30 matters roughly twice as much as a value of 15; the weights do not need to total 100.</p></div>
+                <div className="assumption-note"><Info size={17} /><p>Buyer-fit weights are also normalised automatically. Buyer Profile priorities still multiply warranty, depreciation and comfort weights.</p></div>
               </div>
 
               <div className="settings-card">
@@ -707,7 +759,7 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
                 <RangeField label="Initial over-budget penalty" value={decisionModel.overBudgetBasePenalty} min={0} max={20} step={1} suffix=" pts" onChange={(value) => changeDecisionModel("overBudgetBasePenalty", value)} />
                 <RangeField label="Extra penalty per £1k" value={decisionModel.overBudgetPenaltyPer1000} min={0} max={10} step={0.5} suffix=" pts" onChange={(value) => changeDecisionModel("overBudgetPenaltyPer1000", value)} />
                 <RangeField label="Maximum budget penalty" value={decisionModel.overBudgetPenaltyCap} min={0} max={50} step={1} suffix=" pts" onChange={(value) => changeDecisionModel("overBudgetPenaltyCap", value)} />
-                <button className="secondary-button full" onClick={() => setDecisionModel(defaultDecisionModel)}><RefreshCcw size={16} /> Reset decision model</button>
+                <button className="secondary-button full" onClick={() => setDecisionModel(defaultDecisionModel)}><RefreshCcw size={16} /> Reset full decision model</button>
               </div>
 
               <div className="live-result-card">
@@ -720,19 +772,19 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
                     {modelChangeCount > 0 ? `${modelChangeCount} model setting${modelChangeCount === 1 ? "" : "s"} changed` : "Default decision model active"}
                   </span>
                 </div>
-                <div className="live-score"><strong>{currentWinnerScore.toFixed(1)}</strong><span>/100 fit</span><small>{modelLoaded ? "Saved automatically" : "Loading saved model"}</small></div>
+                <div className="live-score"><strong>{currentWinnerScore.toFixed(1)}</strong><span>/100 final fit</span><small>{modelLoaded ? "Saved automatically" : "Loading saved model"}</small></div>
                 <div className="metric-grid compact">
-                  <div><span>Study evidence</span><strong>{decisionModel.studyEvidenceWeight}%</strong></div>
-                  <div><span>Buyer-fit model</span><strong>{100 - decisionModel.studyEvidenceWeight}%</strong></div>
-                  <div><span>Factor weight total</span><strong>{modelFactorWeightTotal}</strong></div>
-                  <div><span>Budget penalty cap</span><strong>{decisionModel.overBudgetPenaltyCap} pts</strong></div>
+                  <div><span>Research baseline</span><strong>{currentWinnerResearchScore.toFixed(1)}/100</strong></div>
+                  <div><span>Research influence</span><strong>{decisionModel.studyEvidenceWeight}%</strong></div>
+                  <div><span>Baseline raw total</span><strong>{baselineWeightTotal}</strong></div>
+                  <div><span>Buyer weight total</span><strong>{modelFactorWeightTotal}</strong></div>
                 </div>
                 <div className="profile-ranking">
-                  <div className="profile-ranking-head"><span>Live overall ranking</span><small>Reorders as the model changes</small></div>
+                  <div className="profile-ranking-head"><span>Live overall ranking</span><small>Reorders as either model layer changes</small></div>
                   {ranked.slice(0, 5).map((vehicle, index) => (
                     <div className="profile-ranking-row" key={vehicle.id}>
                       <span>#{index + 1}</span>
-                      <div><strong>{vehicle.brand} {vehicle.model}</strong><small>{vehicle.trim}</small></div>
+                      <div><strong>{vehicle.brand} {vehicle.model}</strong><small>Research {researchBaselineScore(vehicle, decisionModel).toFixed(1)} · {vehicle.trim}</small></div>
                       <b>{personalisedScore(vehicle, profile, decisionModel).toFixed(1)}</b>
                     </div>
                   ))}
@@ -740,7 +792,7 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
                 <button className="primary-button" onClick={() => changeView("dashboard")}>View full decision <ChevronRight size={16} /></button>
               </div>
             </div>
-            <div className="callout"><Info size={18} /><div><strong>Buyer Profile and Decision model are deliberately separate.</strong><p>Buyer Profile describes the person, usage and priorities. Decision model controls the scoring architecture. For warranty, depreciation and comfort, the buyer priority acts as a multiplier on the engine weight, so both layers remain meaningful.</p></div></div>
+            <div className="callout"><Info size={18} /><div><strong>The original study remains recoverable at any time.</strong><p>The default research weights are 20/20/15/10/10/8/7/4/3/2/1. With those defaults, each vehicle keeps its published research baseline exactly. Changing the weights moves the baseline according to the underlying value, residual, warranty, reliability, comfort, practicality, running-cost, range, charging, safety and technology evidence.</p></div></div>
           </section>
         ) : null}
 
@@ -786,24 +838,25 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
 
         {view === "methodology" ? (
           <section className="page">
-            <PageTitle eyebrow="Research rules preserved" title="How the decision engine works" description="The application mirrors the study: BEVs and PHEVs are ranked separately first, then compared using buyer-specific suitability and total ownership cost." />
+            <PageTitle eyebrow="Research rules preserved" title="How the decision engine works" description="The application mirrors the study: BEVs and PHEVs are ranked separately first, then compared using the configurable research baseline, buyer-specific suitability and total ownership cost." />
             <div className="method-grid">
               <article className="method-card"><span>01</span><h3>Start with the buyer</h3><p>Budget, mileage, journey pattern, home charging, energy prices and warranty-exit strategy drive the buyer profile.</p></article>
-              <article className="method-card"><span>02</span><h3>Configure the model</h3><p>The evidence blend and factor weights are configurable. The defaults preserve the research model, but the engine is no longer hard-coded.</p></article>
-              <article className="method-card"><span>03</span><h3>Model real usage</h3><p>WLTP is not treated as real-world range. PHEV electric share is constrained by real-world range and charging discipline.</p></article>
-              <article className="method-card"><span>04</span><h3>Price the whole ownership period</h3><p>TCO includes depreciation, energy, servicing, tax, MOT and a tyre allowance, then applies the intended warranty-exit strategy.</p></article>
-              <article className="method-card"><span>05</span><h3>Preserve evidence history</h3><p>New prices, promotions, warranty terms and source snapshots should be time-series records so market changes are auditable.</p></article>
-              <article className="method-card"><span>06</span><h3>Show uncertainty</h3><p>Observed data, assumptions and forecasts are different things. Residual-risk labels remain explicit rather than being hidden in one score.</p></article>
+              <article className="method-card"><span>02</span><h3>Configure the research baseline</h3><p>All 11 original 100-point study factors are editable. The active weights are normalised automatically to 100.</p></article>
+              <article className="method-card"><span>03</span><h3>Blend research and buyer fit</h3><p>Choose how much the configured research baseline contributes to the final result, then tune the personalised scoring layer separately.</p></article>
+              <article className="method-card"><span>04</span><h3>Model real usage</h3><p>WLTP is not treated as real-world range. PHEV electric share is constrained by real-world range and charging discipline.</p></article>
+              <article className="method-card"><span>05</span><h3>Price the ownership period</h3><p>TCO includes depreciation, energy, servicing, tax, MOT and a tyre allowance, then applies the intended warranty-exit strategy.</p></article>
+              <article className="method-card"><span>06</span><h3>Preserve evidence and uncertainty</h3><p>Observed data, assumptions and forecasts remain distinct. Changing a weight changes interpretation of the evidence, not the evidence itself.</p></article>
             </div>
             <div className="weights-card">
-              <div><p className="eyebrow">Original study weighting</p><h3>100-point research baseline</h3></div>
+              <div><p className="eyebrow">Active research weighting</p><h3>Configurable 100-point research baseline</h3><p>Raw total {baselineWeightTotal}; effective weights are normalised proportionally to 100.</p></div>
               <div className="weight-bars">
-                {[
-                  ["Purchase price / value", 20], ["Depreciation / resale", 20], ["Warranty", 15], ["Reliability / support", 10], ["Comfort / quality", 10], ["Practicality", 8], ["Running costs", 7], ["Range / flexibility", 4], ["Charging", 3], ["Safety", 2], ["Technology", 1],
-                ].map(([label, value]) => <div className="weight-row" key={label as string}><span>{label}</span><div><i style={{ width: `${Number(value) * 4}%` }} /></div><strong>{value}%</strong></div>)}
+                {researchWeightRows.map((item) => {
+                  const effective = baselineWeightTotal > 0 ? (decisionModel[item.key] / baselineWeightTotal) * 100 : 0;
+                  return <div className="weight-row" key={item.key}><span>{item.label}</span><div><i style={{ width: `${Math.min(100, effective * 4)}%` }} /></div><strong>{effective.toFixed(1)}%</strong></div>;
+                })}
               </div>
             </div>
-            <div className="callout"><Info size={18} /><div><strong>The research baseline is evidence, not a locked ranking.</strong><p>The Decision model lets you choose how much of that baseline remains in the final score and how strongly buyer-fit factors influence the recommendation.</p></div></div>
+            <div className="callout"><Info size={18} /><div><strong>Resetting the Decision model restores the published study.</strong><p>The original 20/20/15/10/10/8/7/4/3/2/1 weighting reproduces the stored research scores exactly; the configurable layer then lets you test alternative research priorities without losing the original benchmark.</p></div></div>
           </section>
         ) : null}
       </main>
