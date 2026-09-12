@@ -758,7 +758,13 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
                           max={100}
                           step={1}
                           value={decisionModel[item.key]}
-                          onChange={(event) => changeDecisionModel(item.key, Math.max(0, Math.min(100, Number(event.target.value) || 0)))}
+                          onFocus={(event) => event.currentTarget.select()}
+                          onClick={(event) => event.currentTarget.select()}
+                          onChange={(event) => {
+                            const cleaned = event.currentTarget.value.replace(/^0+(?=\d)/, "");
+                            if (cleaned !== event.currentTarget.value) event.currentTarget.value = cleaned;
+                            changeDecisionModel(item.key, Math.max(0, Math.min(100, Number(cleaned) || 0)));
+                          }}
                           aria-label={`${item.label} research points`}
                         />
                         <b>pts</b>
