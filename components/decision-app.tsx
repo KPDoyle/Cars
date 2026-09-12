@@ -64,8 +64,7 @@ const nav: { id: View; label: string; icon: typeof LayoutDashboard }[] = [
   { id: "dashboard", label: "Decision", icon: LayoutDashboard },
   { id: "compare", label: "Compare", icon: GitCompareArrows },
   { id: "deals", label: "Deals", icon: BadgePoundSterling },
-  { id: "profile", label: "Buyer profile", icon: SlidersHorizontal },
-  { id: "model", label: "Decision model", icon: Settings2 },
+  { id: "profile", label: "Build your decision", icon: SlidersHorizontal },
   { id: "data", label: "Data monitor", icon: Database },
   { id: "methodology", label: "Method", icon: Info },
 ];
@@ -507,14 +506,14 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
                 </div>
                 <div className="decision-card">
                   <span className="decision-icon"><Settings2 size={20} /></span>
-                  <div><span>Model blend</span><strong>{decisionModel.studyEvidenceWeight}% research / {100 - decisionModel.studyEvidenceWeight}% buyer</strong><p>The research baseline itself is now configurable from the Decision model page.</p></div>
+                  <div><span>Model blend</span><strong>{decisionModel.studyEvidenceWeight}% research / {100 - decisionModel.studyEvidenceWeight}% buyer</strong><p>The research baseline and buyer profile are configurable together from Build your decision.</p></div>
                 </div>
               </div>
             </div>
 
             <div className="section-head">
               <div><p className="eyebrow">Separate technology rankings</p><h2>Best candidates for your profile</h2></div>
-              <button className="secondary-button" onClick={() => changeView("profile")}><Settings2 size={16} /> Change assumptions</button>
+              <button className="secondary-button" onClick={() => changeView("profile")}><Settings2 size={16} /> Build your decision</button>
             </div>
             <div className="ranking-columns">
               <div>
@@ -529,7 +528,7 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
 
             <div className="insight-grid">
               <div className="insight-card"><span className="mini-icon"><BadgePoundSterling size={18} /></span><div><span>Energy advantage</span><strong>{money(annualEnergyCost(bevRanked[0], profile).total)}/yr</strong><p>Modelled home-charging cost for the leading BEV at {profile.electricityPence}p/kWh.</p></div></div>
-              <div className="insight-card"><span className="mini-icon"><Settings2 size={18} /></span><div><span>Decision model</span><strong>{modelChangeCount ? `${modelChangeCount} custom settings` : "Default model"}</strong><p>The 100-point research baseline and buyer-fit layer are both configurable.</p></div></div>
+              <div className="insight-card"><span className="mini-icon"><Settings2 size={18} /></span><div><span>Decision model</span><strong>{modelChangeCount ? `${modelChangeCount} custom settings` : "Default model"}</strong><p>Your buyer profile and 100-point ranking formula are configurable together.</p></div></div>
               <div className="insight-card"><span className="mini-icon"><TriangleAlert size={18} /></span><div><span>Biggest market risk</span><strong>EV price compression</strong><p>Manufacturer cuts can reduce both the new price and the resale value of existing cars.</p></div></div>
             </div>
           </section>
@@ -663,81 +662,73 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
 
         {view === "profile" ? (
           <section className="page">
-            <PageTitle eyebrow="Personalise the decision" title="Buyer profile" description="The recommendation recalculates immediately as you change the assumptions." />
+            <PageTitle eyebrow="Your car-ranking formula" title="Build your decision" description="Tell CarWise how you buy and use a car, decide what matters most, then see the ranking change immediately." />
+
+            <div className="section-head model-section-head">
+              <div><p className="eyebrow">Step 1 · You and your car</p><h2>Tell CarWise what you need</h2><p>These settings describe your real budget, mileage, journeys, energy costs and ownership plans.</p></div>
+            </div>
             <div className="profile-layout">
               <div className="settings-card">
-                <h3>Usage & budget</h3>
+                <h3>Your life & budget</h3>
                 <RangeField label="Maximum budget" value={profile.budget} min={25000} max={60000} step={1000} suffix="" onChange={(value) => changeProfile("budget", value)} />
                 <RangeField label="Annual mileage" value={profile.annualMiles} min={4000} max={25000} step={500} suffix=" miles" onChange={(value) => changeProfile("annualMiles", value)} />
                 <RangeField label="Typical journey" value={profile.typicalJourney} min={10} max={100} step={5} suffix=" miles" onChange={(value) => changeProfile("typicalJourney", value)} />
-                <RangeField label="Ownership period" value={profile.ownershipYears} min={3} max={7} step={0.5} suffix=" years" onChange={(value) => changeProfile("ownershipYears", value)} />
-                <div className="choice-field"><span>Purchase strategy</span><div className="choice-buttons"><button className={profile.purchaseMode === "new" ? "active" : ""} onClick={() => changeProfile("purchaseMode", "new")}>New</button><button className={profile.purchaseMode === "nearly-new" ? "active" : ""} onClick={() => changeProfile("purchaseMode", "nearly-new")}>6–12 months old</button></div></div>
+                <RangeField label="How long you will keep it" value={profile.ownershipYears} min={3} max={7} step={0.5} suffix=" years" onChange={(value) => changeProfile("ownershipYears", value)} />
+                <div className="choice-field"><span>How you want to buy</span><div className="choice-buttons"><button className={profile.purchaseMode === "new" ? "active" : ""} onClick={() => changeProfile("purchaseMode", "new")}>New</button><button className={profile.purchaseMode === "nearly-new" ? "active" : ""} onClick={() => changeProfile("purchaseMode", "nearly-new")}>6–12 months old</button></div></div>
               </div>
+
               <div className="settings-card">
-                <h3>Energy assumptions</h3>
+                <h3>Energy & charging</h3>
                 <div className="live-assumption"><span className="dot live" /><strong>Octopus live rate: {live.market.octopusOffPeakPence ?? "—"}p/kWh</strong><small>Official source checked {live.market.octopusCheckedAt ? new Date(live.market.octopusCheckedAt).toLocaleString("en-GB") : "—"}</small></div>
                 <RangeField label="Home electricity" value={profile.electricityPence} min={5} max={35} step={1} suffix="p/kWh" onChange={(value) => changeProfile("electricityPence", value)} />
                 <div className="live-assumption"><span className="dot live" /><strong>UK petrol live: {live.market.petrolPencePerLitre?.toFixed(1) ?? "—"}p/L</strong><small>DESNZ weekly official data</small></div>
                 <RangeField label="Petrol" value={profile.petrolPencePerLitre} min={115} max={210} step={1} suffix="p/L" onChange={(value) => changeProfile("petrolPencePerLitre", value)} />
-                <RangeField label="PHEV charging discipline" value={profile.chargeDiscipline} min={20} max={100} step={5} suffix="%" onChange={(value) => changeProfile("chargeDiscipline", value)} />
-                <div className="assumption-note"><Zap size={17} /><p>A PHEV is only rewarded for electric miles it can realistically deliver under your journey length and charging discipline.</p></div>
+                <RangeField label="How reliably you would charge a PHEV" value={profile.chargeDiscipline} min={20} max={100} step={5} suffix="%" onChange={(value) => changeProfile("chargeDiscipline", value)} />
+                <div className="assumption-note"><Zap size={17} /><p>A plug-in hybrid only gets credit for electric miles you could realistically drive.</p></div>
               </div>
+
               <div className="settings-card">
-                <h3>Decision priorities</h3>
-                <RangeField label="Warranty importance" value={profile.warrantyWeight} min={5} max={25} step={1} suffix="%" onChange={(value) => changeProfile("warrantyWeight", value)} />
-                <RangeField label="Depreciation importance" value={profile.depreciationWeight} min={10} max={30} step={1} suffix="%" onChange={(value) => changeProfile("depreciationWeight", value)} />
-                <RangeField label="Comfort importance" value={profile.comfortWeight} min={5} max={20} step={1} suffix="%" onChange={(value) => changeProfile("comfortWeight", value)} />
-                <button className="secondary-button full" onClick={() => setProfile(studyProfile)}><RefreshCcw size={16} /> Reset to study profile</button>
+                <h3>Extra personal priorities</h3>
+                <RangeField label="Warranty matters to me" value={profile.warrantyWeight} min={5} max={25} step={1} suffix="%" onChange={(value) => changeProfile("warrantyWeight", value)} />
+                <RangeField label="Avoiding depreciation matters to me" value={profile.depreciationWeight} min={10} max={30} step={1} suffix="%" onChange={(value) => changeProfile("depreciationWeight", value)} />
+                <RangeField label="Comfort matters to me" value={profile.comfortWeight} min={5} max={20} step={1} suffix="%" onChange={(value) => changeProfile("comfortWeight", value)} />
+                <button className="secondary-button full" onClick={() => setProfile(studyProfile)}><RefreshCcw size={16} /> Reset buyer profile</button>
               </div>
+
               <div className="live-result-card">
                 <div>
-                  <p className="eyebrow">Recommendation after your changes</p>
+                  <p className="eyebrow">Your current leader</p>
                   <VehicleBadge powertrain={winner.powertrain} />
                   <h2>{winner.brand} {winner.model}</h2>
                   <p>{winner.trim}</p>
                   <span className={classNames("profile-active", profileChangeCount > 0 && "changed")}>
-                    {profileChangeCount > 0 ? `${profileChangeCount} profile setting${profileChangeCount === 1 ? "" : "s"} changed` : "Study profile active"}
+                    {profileChangeCount > 0 ? `${profileChangeCount} buyer setting${profileChangeCount === 1 ? "" : "s"} changed` : "Default buyer profile"}
                   </span>
                 </div>
                 <div className="live-score">
                   <strong>{currentWinnerScore.toFixed(1)}</strong>
                   <span>/100 fit</span>
                   <small className={classNames("score-delta", scoreDeltaFromStudy > 0.05 ? "up" : scoreDeltaFromStudy < -0.05 ? "down" : "")}>
-                    {Math.abs(scoreDeltaFromStudy) < 0.05 ? "Study baseline" : `${scoreDeltaFromStudy > 0 ? "+" : ""}${scoreDeltaFromStudy.toFixed(1)} vs study`}
+                    {Math.abs(scoreDeltaFromStudy) < 0.05 ? "Study profile" : `${scoreDeltaFromStudy > 0 ? "+" : ""}${scoreDeltaFromStudy.toFixed(1)} vs study profile`}
                   </small>
                 </div>
-                <div className="metric-grid compact"><div><span>Purchase</span><strong>{money(purchasePrice(winner, profile))}</strong></div><div><span>TCO</span><strong>{money(winnerTco.total)}</strong></div><div><span>Energy</span><strong>{money(annualEnergyCost(winner, profile).total)}/yr</strong></div><div><span>Exit</span><strong>{winnerExit.yearsFromPurchase.toFixed(1)} yrs</strong></div></div>
-                <button className="primary-button" onClick={() => changeView("dashboard")}>View full decision <ChevronRight size={16} /></button>
-                <div className="profile-ranking">
-                  <div className="profile-ranking-head"><span>Current top 3</span><small>Updates with every profile change</small></div>
-                  {ranked.slice(0, 3).map((vehicle, index) => (
-                    <div className="profile-ranking-row" key={vehicle.id}>
-                      <span>#{index + 1}</span>
-                      <div><strong>{vehicle.brand} {vehicle.model}</strong><small>{vehicle.trim}</small></div>
-                      <b>{personalisedScore(vehicle, profile, decisionModel).toFixed(1)}</b>
-                    </div>
-                  ))}
-                </div>
+                <div className="metric-grid compact"><div><span>Purchase</span><strong>{money(purchasePrice(winner, profile))}</strong></div><div><span>TCO</span><strong>{money(winnerTco.total)}</strong></div><div><span>Energy</span><strong>{money(annualEnergyCost(winner, profile).total)}/yr</strong></div><div><span>Warranty exit</span><strong>{winnerExit.yearsFromPurchase.toFixed(1)} yrs</strong></div></div>
               </div>
             </div>
-          </section>
-        ) : null}
 
-        {view === "model" ? (
-          <section className="page">
-            <PageTitle eyebrow="Configure the engine" title="Decision model" description="Control the 100-point research baseline, the research-vs-buyer blend and the live buyer-fit scoring rules. Changes update every ranking immediately and are saved in this browser." />
-
+            <div className="section-head model-section-head">
+              <div><p className="eyebrow">Step 2 · What makes a good car?</p><h2>Spend your 100 decision points</h2><p>Give more points to the things you care about most. CarWise uses this to recalculate the research score for every car.</p></div>
+            </div>
             <div className="baseline-editor-card">
               <div className="baseline-editor-top">
                 <div>
-                  <p className="eyebrow">Layer 1 · edit this first</p>
-                  <h2>Edit the 100 research points</h2>
-                  <p>Type the number of points you want to give each research factor. The original study starts at 20 + 20 + 15 + 10 + 10 + 8 + 7 + 4 + 3 + 2 + 1 = 100.</p>
+                  <h2>Your 100-point formula</h2>
+                  <p>The original study uses 20 + 20 + 15 + 10 + 10 + 8 + 7 + 4 + 3 + 2 + 1 = 100. Change any number to build your own formula.</p>
                 </div>
                 <div className={classNames("baseline-total", Math.abs(baselineWeightTotal - 100) < 0.05 && "exact")}>
                   <strong>{baselineWeightTotal.toFixed(1)}</strong>
-                  <span>/ 100 raw points</span>
-                  <small>{Math.abs(baselineWeightTotal - 100) < 0.05 ? "Exactly 100" : "Auto-normalised to 100"}</small>
+                  <span>/ 100 points</span>
+                  <small>{Math.abs(baselineWeightTotal - 100) < 0.05 ? "Ready" : "CarWise will normalise it"}</small>
                 </div>
               </div>
 
@@ -748,7 +739,7 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
                     <label className="baseline-point-row" key={item.key}>
                       <span className="baseline-point-copy">
                         <strong>{item.label}</strong>
-                        <small>Original {item.original}/100 · Effective {effective.toFixed(1)}/100</small>
+                        <small>Original {item.original} pts · Current share {effective.toFixed(1)}%</small>
                       </span>
                       <span className="baseline-point-input">
                         <input
@@ -765,7 +756,7 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
                             if (cleaned !== event.currentTarget.value) event.currentTarget.value = cleaned;
                             changeDecisionModel(item.key, Math.max(0, Math.min(100, Number(cleaned) || 0)));
                           }}
-                          aria-label={`${item.label} research points`}
+                          aria-label={`${item.label} decision points`}
                         />
                         <b>pts</b>
                       </span>
@@ -775,65 +766,41 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
               </div>
 
               <div className="baseline-editor-actions">
-                <button className="primary-button" onClick={normaliseResearchBaseline}>Normalise to exactly 100</button>
-                <button className="secondary-button" onClick={resetResearchBaseline}><RefreshCcw size={16} /> Reset original 100</button>
+                <button className="primary-button" onClick={normaliseResearchBaseline}>Make total exactly 100</button>
+                <button className="secondary-button" onClick={resetResearchBaseline}><RefreshCcw size={16} /> Restore original 100</button>
               </div>
-              <p className="baseline-editor-note">If the raw total is not exactly 100, CarWise still works: it automatically converts the figures into an effective 100-point allocation. Press “Normalise to exactly 100” if you want the entered numbers themselves to add to 100.</p>
             </div>
 
             <div className="section-head model-section-head">
-              <div><p className="eyebrow">Layer 2</p><h2>Research vs buyer-fit model</h2><p>Choose how much the configured research baseline contributes to the final recommendation, then tune the personalised scoring layer.</p></div>
+              <div><p className="eyebrow">Step 3 · How should CarWise decide?</p><h2>Balance research with your personal fit</h2><p>This decides whether the final answer should lean more on the general research or more on your own circumstances.</p></div>
             </div>
             <div className="profile-layout">
               <div className="settings-card">
-                <h3>Evidence blend</h3>
-                <RangeField label="Configured research baseline influence" value={decisionModel.studyEvidenceWeight} min={0} max={100} step={5} suffix="%" onChange={(value) => changeDecisionModel("studyEvidenceWeight", value)} />
-                <div className="assumption-note"><Settings2 size={17} /><p><strong>{decisionModel.studyEvidenceWeight}%</strong> of the final score comes from your configured research baseline. The remaining <strong>{100 - decisionModel.studyEvidenceWeight}%</strong> comes from the live buyer-fit model.</p></div>
-              </div>
-
-              <div className="settings-card">
-                <h3>Core buyer-fit weights</h3>
-                <RangeField label="Budget fit" value={decisionModel.budgetWeight} min={0} max={40} step={1} suffix="" onChange={(value) => changeDecisionModel("budgetWeight", value)} />
-                <RangeField label="Warranty fit" value={decisionModel.warrantyWeight} min={0} max={40} step={1} suffix="" onChange={(value) => changeDecisionModel("warrantyWeight", value)} />
-                <RangeField label="Depreciation / residual" value={decisionModel.depreciationWeight} min={0} max={40} step={1} suffix="" onChange={(value) => changeDecisionModel("depreciationWeight", value)} />
-                <RangeField label="Comfort" value={decisionModel.comfortWeight} min={0} max={30} step={1} suffix="" onChange={(value) => changeDecisionModel("comfortWeight", value)} />
-              </div>
-
-              <div className="settings-card">
-                <h3>Usage & strategy weights</h3>
-                <RangeField label="Running cost" value={decisionModel.runningCostWeight} min={0} max={30} step={1} suffix="" onChange={(value) => changeDecisionModel("runningCostWeight", value)} />
-                <RangeField label="Journey / range fit" value={decisionModel.journeyWeight} min={0} max={30} step={1} suffix="" onChange={(value) => changeDecisionModel("journeyWeight", value)} />
-                <RangeField label="New vs nearly-new strategy" value={decisionModel.strategyWeight} min={0} max={25} step={1} suffix="" onChange={(value) => changeDecisionModel("strategyWeight", value)} />
-                <div className="assumption-note"><Info size={17} /><p>Buyer-fit weights are also normalised automatically. Buyer Profile priorities still multiply warranty, depreciation and comfort weights.</p></div>
-              </div>
-
-              <div className="settings-card">
-                <h3>Budget constraint</h3>
-                <RangeField label="Initial over-budget penalty" value={decisionModel.overBudgetBasePenalty} min={0} max={20} step={1} suffix=" pts" onChange={(value) => changeDecisionModel("overBudgetBasePenalty", value)} />
-                <RangeField label="Extra penalty per £1k" value={decisionModel.overBudgetPenaltyPer1000} min={0} max={10} step={0.5} suffix=" pts" onChange={(value) => changeDecisionModel("overBudgetPenaltyPer1000", value)} />
-                <RangeField label="Maximum budget penalty" value={decisionModel.overBudgetPenaltyCap} min={0} max={50} step={1} suffix=" pts" onChange={(value) => changeDecisionModel("overBudgetPenaltyCap", value)} />
-                <button className="secondary-button full" onClick={() => setDecisionModel(defaultDecisionModel)}><RefreshCcw size={16} /> Reset full decision model</button>
+                <h3>Research vs you</h3>
+                <RangeField label="Research influence" value={decisionModel.studyEvidenceWeight} min={0} max={100} step={5} suffix="%" onChange={(value) => changeDecisionModel("studyEvidenceWeight", value)} />
+                <div className="assumption-note"><Settings2 size={17} /><p><strong>{decisionModel.studyEvidenceWeight}% research</strong> + <strong>{100 - decisionModel.studyEvidenceWeight}% your personal fit</strong>.</p></div>
+                <p className="baseline-editor-note">30% research / 70% personal fit is the default. Move towards research for a more general best-car answer; move towards personal fit for a more individual recommendation.</p>
               </div>
 
               <div className="live-result-card">
                 <div>
-                  <p className="eyebrow">Live model result</p>
+                  <p className="eyebrow">Your formula result</p>
                   <VehicleBadge powertrain={winner.powertrain} />
                   <h2>{winner.brand} {winner.model}</h2>
                   <p>{winner.trim}</p>
-                  <span className={classNames("profile-active", modelChangeCount > 0 && "changed")}>
-                    {modelChangeCount > 0 ? `${modelChangeCount} model setting${modelChangeCount === 1 ? "" : "s"} changed` : "Default decision model active"}
+                  <span className={classNames("profile-active", (modelChangeCount > 0 || profileChangeCount > 0) && "changed")}>
+                    {modelChangeCount > 0 || profileChangeCount > 0 ? "Your custom formula is active" : "Original CarWise formula"}
                   </span>
                 </div>
                 <div className="live-score"><strong>{currentWinnerScore.toFixed(1)}</strong><span>/100 final fit</span><small>{modelLoaded ? "Saved automatically" : "Loading saved model"}</small></div>
                 <div className="metric-grid compact">
-                  <div><span>Research baseline</span><strong>{currentWinnerResearchScore.toFixed(1)}/100</strong></div>
+                  <div><span>Research score</span><strong>{currentWinnerResearchScore.toFixed(1)}/100</strong></div>
                   <div><span>Research influence</span><strong>{decisionModel.studyEvidenceWeight}%</strong></div>
-                  <div><span>Baseline raw total</span><strong>{baselineWeightTotal}</strong></div>
-                  <div><span>Buyer weight total</span><strong>{modelFactorWeightTotal}</strong></div>
+                  <div><span>Personal influence</span><strong>{100 - decisionModel.studyEvidenceWeight}%</strong></div>
+                  <div><span>100-point total</span><strong>{baselineWeightTotal.toFixed(1)}</strong></div>
                 </div>
                 <div className="profile-ranking">
-                  <div className="profile-ranking-head"><span>Live overall ranking</span><small>Reorders as either model layer changes</small></div>
+                  <div className="profile-ranking-head"><span>Live overall ranking</span><small>Changes as you edit your formula</small></div>
                   {ranked.slice(0, 5).map((vehicle, index) => (
                     <div className="profile-ranking-row" key={vehicle.id}>
                       <span>#{index + 1}</span>
@@ -842,10 +809,38 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
                     </div>
                   ))}
                 </div>
-                <button className="primary-button" onClick={() => changeView("dashboard")}>View full decision <ChevronRight size={16} /></button>
+                <button className="primary-button" onClick={() => changeView("dashboard")}>See full decision <ChevronRight size={16} /></button>
               </div>
             </div>
-            <div className="callout"><Info size={18} /><div><strong>The original study remains recoverable at any time.</strong><p>The default research weights are 20/20/15/10/10/8/7/4/3/2/1. With those defaults, each vehicle keeps its published research baseline exactly. Changing the weights moves the baseline according to the underlying value, residual, warranty, reliability, comfort, practicality, running-cost, range, charging, safety and technology evidence.</p></div></div>
+
+            <details className="optional-feeds decision-advanced">
+              <summary>Advanced tuning — optional</summary>
+              <p>You normally do not need these controls. They let you change how strongly CarWise calculates buyer fit and how harshly it treats cars over budget.</p>
+              <div className="profile-layout">
+                <div className="settings-card">
+                  <h3>Buyer-fit ingredients</h3>
+                  <RangeField label="Budget fit" value={decisionModel.budgetWeight} min={0} max={40} step={1} suffix="" onChange={(value) => changeDecisionModel("budgetWeight", value)} />
+                  <RangeField label="Warranty fit" value={decisionModel.warrantyWeight} min={0} max={40} step={1} suffix="" onChange={(value) => changeDecisionModel("warrantyWeight", value)} />
+                  <RangeField label="Depreciation / residual" value={decisionModel.depreciationWeight} min={0} max={40} step={1} suffix="" onChange={(value) => changeDecisionModel("depreciationWeight", value)} />
+                  <RangeField label="Comfort" value={decisionModel.comfortWeight} min={0} max={30} step={1} suffix="" onChange={(value) => changeDecisionModel("comfortWeight", value)} />
+                </div>
+                <div className="settings-card">
+                  <h3>Usage & purchase fit</h3>
+                  <RangeField label="Running cost" value={decisionModel.runningCostWeight} min={0} max={30} step={1} suffix="" onChange={(value) => changeDecisionModel("runningCostWeight", value)} />
+                  <RangeField label="Journey / range fit" value={decisionModel.journeyWeight} min={0} max={30} step={1} suffix="" onChange={(value) => changeDecisionModel("journeyWeight", value)} />
+                  <RangeField label="New vs nearly-new strategy" value={decisionModel.strategyWeight} min={0} max={25} step={1} suffix="" onChange={(value) => changeDecisionModel("strategyWeight", value)} />
+                </div>
+                <div className="settings-card">
+                  <h3>Budget strictness</h3>
+                  <RangeField label="Initial over-budget penalty" value={decisionModel.overBudgetBasePenalty} min={0} max={20} step={1} suffix=" pts" onChange={(value) => changeDecisionModel("overBudgetBasePenalty", value)} />
+                  <RangeField label="Extra penalty per £1k" value={decisionModel.overBudgetPenaltyPer1000} min={0} max={10} step={0.5} suffix=" pts" onChange={(value) => changeDecisionModel("overBudgetPenaltyPer1000", value)} />
+                  <RangeField label="Maximum budget penalty" value={decisionModel.overBudgetPenaltyCap} min={0} max={50} step={1} suffix=" pts" onChange={(value) => changeDecisionModel("overBudgetPenaltyCap", value)} />
+                  <button className="secondary-button full" onClick={() => setDecisionModel(defaultDecisionModel)}><RefreshCcw size={16} /> Reset decision rules</button>
+                </div>
+              </div>
+            </details>
+
+            <div className="callout"><Info size={18} /><div><strong>Buyer profile and decision rules now live together.</strong><p>You can start at the top, work down the page and see the recommendation change without switching between two separate menus. The original study can always be restored.</p></div></div>
           </section>
         ) : null}
 
