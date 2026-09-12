@@ -1,0 +1,31 @@
+name: Apply unified decision builder
+
+on:
+  push:
+    branches: [unify-decision-builder]
+    paths:
+      - 'scripts/unify-decision-builder.py'
+      - '.github/workflows/apply-unified-builder.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: unify-decision-builder
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Apply UI migration
+        run: python scripts/unify-decision-builder.py
+      - name: Clean migration helpers
+        run: rm scripts/unify-decision-builder.py .github/workflows/apply-unified-builder.yml
+      - name: Commit unified page
+        run: |
+          git config user.name 'carwise-ui-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add -A
+          git commit -m 'feat: unify buyer profile and decision model' || exit 0
+          git push origin HEAD:unify-decision-builder
