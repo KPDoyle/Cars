@@ -26,7 +26,7 @@ import {
   X,
   Zap,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import rawData from "@/data/vehicle-data.json";
 import {
   annualEnergyCost,
@@ -37,11 +37,13 @@ import {
   tco,
   warrantyExit,
 } from "@/lib/calculations";
+import { defaultDecisionModel, type DecisionModel } from "@/lib/decision-model";
 import type { BuyerProfile, LiveSnapshot, Vehicle } from "@/lib/types";
 
 const vehicles = rawData.vehicles as unknown as Vehicle[];
+const MODEL_STORAGE_KEY = "carwise-decision-model-v1";
 
-type View = "dashboard" | "compare" | "deals" | "profile" | "data" | "methodology";
+type View = "dashboard" | "compare" | "deals" | "profile" | "model" | "data" | "methodology";
 
 const defaultProfile: BuyerProfile = {
   budget: 50000,
@@ -62,6 +64,7 @@ const nav: { id: View; label: string; icon: typeof LayoutDashboard }[] = [
   { id: "compare", label: "Compare", icon: GitCompareArrows },
   { id: "deals", label: "Deals", icon: BadgePoundSterling },
   { id: "profile", label: "Buyer profile", icon: SlidersHorizontal },
+  { id: "model", label: "Decision model", icon: Settings2 },
   { id: "data", label: "Data monitor", icon: Database },
   { id: "methodology", label: "Method", icon: Info },
 ];
@@ -142,15 +145,17 @@ function dealBand(vehicle: Vehicle, price: number) {
 function RecommendationCard({
   vehicle,
   profile,
+  model,
   rank,
   featured = false,
 }: {
   vehicle: Vehicle;
   profile: BuyerProfile;
+  model: DecisionModel;
   rank: number;
   featured?: boolean;
 }) {
-  const score = personalisedScore(vehicle, profile);
+  const score = personalisedScore(vehicle, profile, model);
   const cost = tco(vehicle, profile);
   const exit = warrantyExit(vehicle, profile);
   const energy = annualEnergyCost(vehicle, profile);
@@ -191,6 +196,8 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
     electricityPence: initialLive.market.octopusOffPeakPence ?? defaultProfile.electricityPence,
     petrolPencePerLitre: initialLive.market.petrolPencePerLitre ?? defaultProfile.petrolPencePerLitre,
   }));
+  const [decisionModel, setDecisionModel] = useState<DecisionModel>(defaultDecisionModel);
+  const [modelLoaded, setModelLoaded] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [compareIds, setCompareIds] = useState<string[]>([
     "kia-ev3-air-long-range",
@@ -201,6 +208,25 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
   const [manualDealVehicleId, setManualDealVehicleId] = useState("kia-ev3-air-long-range");
   const [manualDealPrice, setManualDealPrice] = useState(28950);
   const [manualDealMileage, setManualDealMileage] = useState(8000);
+
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(MODEL_STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored) as Partial<DecisionModel>;
+        setDecisionModel({ ...defaultDecisionModel, ...parsed });
+      }
+    } catch {
+      // Ignore malformed local preferences and keep the transparent defaults.
+    } finally {
+      setModelLoaded(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!modelLoaded) return;
+    window.localStorage.setItem(MODEL_STORAGE_KEY, JSON.stringify(decisionModel));
+  }, [decisionModel, modelLoaded]);
 
   const liveVehicles = useMemo(() => {
     const observationMap = new Map(live.vehicleObservations.map((item) => [item.vehicleId, item]));
@@ -223,15 +249,15 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
   const safetyMap = useMemo(() => new Map(live.safety.map((item) => [item.vehicleId, item])), [live.safety]);
   const recallMap = useMemo(() => new Map(live.recalls.map((item) => [item.vehicleId, item])), [live.recalls]);
   const ranked = useMemo(
-    () => [...liveVehicles].sort((a, b) => personalisedScore(b, profile) - personalisedScore(a, profile)),
-    [liveVehicles, profile],
+    () => [...liveVehicles].sort((a, b) => personalisedScore(b, profile, decisionModel) - personalisedScore(a, profile, decisionModel)),
+    [liveVehicles, profile, decisionModel],
   );
   const bevRanked = ranked.filter((vehicle) => vehicle.powertrain === "BEV");
   const phevRanked = ranked.filter((vehicle) => vehicle.powertrain === "PHEV");
   const winner = ranked[0];
   const winnerTco = tco(winner, profile);
   const winnerExit = warrantyExit(winner, profile);
-  const technologyWinner = personalisedScore(bevRanked[0], profile) >= personalisedScore(phevRanked[0], profile) ? "BEV" : "PHEV";
+  const technologyWinner = personalisedScore(bevRanked[0], profile, decisionModel) >= personalisedScore(phevRanked[0], profile, decisionModel) ? "BEV" : "PHEV";
   const studyProfile = useMemo<BuyerProfile>(() => ({
     ...defaultProfile,
     electricityPence: live.market.octopusOffPeakPence ?? defaultProfile.electricityPence,
@@ -239,8 +265,17 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
   }), [live.market.octopusOffPeakPence, live.market.petrolPencePerLitre]);
   const profileChangeCount = (Object.keys(profile) as Array<keyof BuyerProfile>)
     .filter((key) => profile[key] !== studyProfile[key]).length;
-  const currentWinnerScore = personalisedScore(winner, profile);
-  const studyScoreForCurrentWinner = personalisedScore(winner, studyProfile);
+  const modelChangeCount = (Object.keys(defaultDecisionModel) as Array<keyof DecisionModel>)
+    .filter((key) => decisionModel[key] !== defaultDecisionModel[key]).length;
+  const modelFactorWeightTotal = decisionModel.budgetWeight
+    + decisionModel.warrantyWeight
+    + decisionModel.depreciationWeight
+    + decisionModel.comfortWeight
+    + decisionModel.runningCostWeight
+    + decisionModel.journeyWeight
+    + decisionModel.strategyWeight;
+  const currentWinnerScore = personalisedScore(winner, profile, decisionModel);
+  const studyScoreForCurrentWinner = personalisedScore(winner, studyProfile, decisionModel);
   const scoreDeltaFromStudy = currentWinnerScore - studyScoreForCurrentWinner;
   const manualDealVehicle = liveVehicles.find((vehicle) => vehicle.id === manualDealVehicleId) ?? liveVehicles[0];
   const manualDealAssessment = dealBand(manualDealVehicle, manualDealPrice);
@@ -297,6 +332,10 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
     setProfile((current) => ({ ...current, [key]: value }));
   };
 
+  const changeDecisionModel = <K extends keyof DecisionModel>(key: K, value: DecisionModel[K]) => {
+    setDecisionModel((current) => ({ ...current, [key]: value }));
+  };
+
   const refreshLive = async () => {
     setRefreshing(true);
     try {
@@ -342,8 +381,8 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
         </nav>
         <div className="sidebar-status">
           <div className="status-head"><Activity size={15} /><span>Research engine</span></div>
-          <strong>No API key required</strong>
-          <p>Public UK sources, reviewed benchmarks and manual deal analysis keep the core decision engine fully usable.</p>
+          <strong>Configurable model</strong>
+          <p>Public UK data, buyer assumptions and a configurable scoring model drive the live recommendation.</p>
           <div className="status-row"><span className="dot live" /> Public-data mode active</div>
         </div>
       </aside>
@@ -394,7 +433,7 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
                   </div>
                   <div className="hero-score">
                     <span>Fit score</span>
-                    <strong>{personalisedScore(winner, profile).toFixed(1)}</strong>
+                    <strong>{personalisedScore(winner, profile, decisionModel).toFixed(1)}</strong>
                     <small>/100</small>
                   </div>
                 </div>
@@ -413,15 +452,15 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
               <div className="decision-stack">
                 <div className="decision-card technology">
                   <span className="decision-icon"><Zap size={20} /></span>
-                  <div><span>Technology verdict</span><strong>{technologyWinner}</strong><p>Cheap home charging and low annual mileage make a full EV the stronger default.</p></div>
+                  <div><span>Technology verdict</span><strong>{technologyWinner}</strong><p>The verdict responds to your buyer profile and the active decision-model weights.</p></div>
                 </div>
                 <div className="decision-card">
                   <span className="decision-icon"><CircleDollarSign size={20} /></span>
-                  <div><span>Budget sweet spot</span><strong>£28k–£36k</strong><p>Nearly-new absorbs the steepest first-year depreciation without sacrificing much warranty.</p></div>
+                  <div><span>Budget model</span><strong>{money(profile.budget)} max</strong><p>Cars above your maximum budget are penalised using the configurable model rules.</p></div>
                 </div>
                 <div className="decision-card">
-                  <span className="decision-icon"><ShieldCheck size={20} /></span>
-                  <div><span>Warranty benchmark</span><strong>7yr / 100k</strong><p>Calendar warranty duration matters more than mileage at ~{profile.annualMiles.toLocaleString()} miles/year.</p></div>
+                  <span className="decision-icon"><Settings2 size={20} /></span>
+                  <div><span>Model blend</span><strong>{decisionModel.studyEvidenceWeight}% study / {100 - decisionModel.studyEvidenceWeight}% buyer</strong><p>You can change the scoring logic from the Decision model page.</p></div>
                 </div>
               </div>
             </div>
@@ -433,17 +472,17 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
             <div className="ranking-columns">
               <div>
                 <div className="column-title"><BatteryCharging size={18} /><h3>BEV ranking</h3><span>{bevRanked.length} shortlisted</span></div>
-                <div className="vehicle-list">{bevRanked.slice(0, 3).map((vehicle, index) => <RecommendationCard key={vehicle.id} vehicle={vehicle} profile={profile} rank={index + 1} featured={index === 0} />)}</div>
+                <div className="vehicle-list">{bevRanked.slice(0, 3).map((vehicle, index) => <RecommendationCard key={vehicle.id} vehicle={vehicle} profile={profile} model={decisionModel} rank={index + 1} featured={index === 0} />)}</div>
               </div>
               <div>
                 <div className="column-title"><Gauge size={18} /><h3>PHEV ranking</h3><span>{phevRanked.length} shortlisted</span></div>
-                <div className="vehicle-list">{phevRanked.slice(0, 3).map((vehicle, index) => <RecommendationCard key={vehicle.id} vehicle={vehicle} profile={profile} rank={index + 1} featured={index === 0} />)}</div>
+                <div className="vehicle-list">{phevRanked.slice(0, 3).map((vehicle, index) => <RecommendationCard key={vehicle.id} vehicle={vehicle} profile={profile} model={decisionModel} rank={index + 1} featured={index === 0} />)}</div>
               </div>
             </div>
 
             <div className="insight-grid">
               <div className="insight-card"><span className="mini-icon"><BadgePoundSterling size={18} /></span><div><span>Energy advantage</span><strong>{money(annualEnergyCost(bevRanked[0], profile).total)}/yr</strong><p>Modelled home-charging cost for the leading BEV at {profile.electricityPence}p/kWh.</p></div></div>
-              <div className="insight-card"><span className="mini-icon"><RefreshCcw size={18} /></span><div><span>Live-data principle</span><strong>Never overwrite history</strong><p>Price and warranty observations are time-stamped so price-cut and residual risk can be detected.</p></div></div>
+              <div className="insight-card"><span className="mini-icon"><Settings2 size={18} /></span><div><span>Decision model</span><strong>{modelChangeCount ? `${modelChangeCount} custom settings` : "Default model"}</strong><p>Engine weights are normalised automatically, so they do not need to add to 100.</p></div></div>
               <div className="insight-card"><span className="mini-icon"><TriangleAlert size={18} /></span><div><span>Biggest market risk</span><strong>EV price compression</strong><p>Manufacturer cuts can reduce both the new price and the resale value of existing cars.</p></div></div>
             </div>
           </section>
@@ -473,9 +512,10 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
                 const exit = warrantyExit(vehicle, profile);
                 const safety = safetyMap.get(vehicle.id);
                 const recall = recallMap.get(vehicle.id);
+                const score = personalisedScore(vehicle, profile, decisionModel);
                 return (
                   <article key={vehicle.id} className="compare-card">
-                    <div className="compare-title"><div><VehicleBadge powertrain={vehicle.powertrain} /><h3>{vehicle.brand} {vehicle.model}</h3><p>{vehicle.trim}</p></div><span className={classNames("score-chip", scoreClass(personalisedScore(vehicle, profile)))}>{personalisedScore(vehicle, profile).toFixed(1)}</span></div>
+                    <div className="compare-title"><div><VehicleBadge powertrain={vehicle.powertrain} /><h3>{vehicle.brand} {vehicle.model}</h3><p>{vehicle.trim}</p></div><span className={classNames("score-chip", scoreClass(score))}>{score.toFixed(1)}</span></div>
                     <Metric label="Buy price" value={money(purchasePrice(vehicle, profile))} />
                     <Metric label="Real-world EV range" value={`${vehicle.realWorldElectricMiles} mi`} />
                     <Metric label="Winter EV range" value={`${vehicle.winterElectricMiles} mi`} />
@@ -627,12 +667,80 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
                     <div className="profile-ranking-row" key={vehicle.id}>
                       <span>#{index + 1}</span>
                       <div><strong>{vehicle.brand} {vehicle.model}</strong><small>{vehicle.trim}</small></div>
-                      <b>{personalisedScore(vehicle, profile).toFixed(1)}</b>
+                      <b>{personalisedScore(vehicle, profile, decisionModel).toFixed(1)}</b>
                     </div>
                   ))}
                 </div>
               </div>
             </div>
+          </section>
+        ) : null}
+
+        {view === "model" ? (
+          <section className="page">
+            <PageTitle eyebrow="Configure the engine" title="Decision model" description="Control how CarWise converts the research evidence and buyer profile into a recommendation. Changes update every ranking immediately and are saved in this browser." />
+            <div className="profile-layout">
+              <div className="settings-card">
+                <h3>Evidence blend</h3>
+                <RangeField label="Original study influence" value={decisionModel.studyEvidenceWeight} min={0} max={100} step={5} suffix="%" onChange={(value) => changeDecisionModel("studyEvidenceWeight", value)} />
+                <div className="assumption-note"><Settings2 size={17} /><p><strong>{100 - decisionModel.studyEvidenceWeight}%</strong> of the score is currently driven by the live buyer-fit model. The remaining <strong>{decisionModel.studyEvidenceWeight}%</strong> preserves the original study evidence.</p></div>
+              </div>
+
+              <div className="settings-card">
+                <h3>Core factor weights</h3>
+                <RangeField label="Budget fit" value={decisionModel.budgetWeight} min={0} max={40} step={1} suffix="" onChange={(value) => changeDecisionModel("budgetWeight", value)} />
+                <RangeField label="Warranty fit" value={decisionModel.warrantyWeight} min={0} max={40} step={1} suffix="" onChange={(value) => changeDecisionModel("warrantyWeight", value)} />
+                <RangeField label="Depreciation / residual" value={decisionModel.depreciationWeight} min={0} max={40} step={1} suffix="" onChange={(value) => changeDecisionModel("depreciationWeight", value)} />
+                <RangeField label="Comfort" value={decisionModel.comfortWeight} min={0} max={30} step={1} suffix="" onChange={(value) => changeDecisionModel("comfortWeight", value)} />
+              </div>
+
+              <div className="settings-card">
+                <h3>Usage & strategy weights</h3>
+                <RangeField label="Running cost" value={decisionModel.runningCostWeight} min={0} max={30} step={1} suffix="" onChange={(value) => changeDecisionModel("runningCostWeight", value)} />
+                <RangeField label="Journey / range fit" value={decisionModel.journeyWeight} min={0} max={30} step={1} suffix="" onChange={(value) => changeDecisionModel("journeyWeight", value)} />
+                <RangeField label="New vs nearly-new strategy" value={decisionModel.strategyWeight} min={0} max={25} step={1} suffix="" onChange={(value) => changeDecisionModel("strategyWeight", value)} />
+                <div className="assumption-note"><Info size={17} /><p>Weights are normalised automatically. A value of 30 matters roughly twice as much as a value of 15; the weights do not need to total 100.</p></div>
+              </div>
+
+              <div className="settings-card">
+                <h3>Budget constraint</h3>
+                <RangeField label="Initial over-budget penalty" value={decisionModel.overBudgetBasePenalty} min={0} max={20} step={1} suffix=" pts" onChange={(value) => changeDecisionModel("overBudgetBasePenalty", value)} />
+                <RangeField label="Extra penalty per £1k" value={decisionModel.overBudgetPenaltyPer1000} min={0} max={10} step={0.5} suffix=" pts" onChange={(value) => changeDecisionModel("overBudgetPenaltyPer1000", value)} />
+                <RangeField label="Maximum budget penalty" value={decisionModel.overBudgetPenaltyCap} min={0} max={50} step={1} suffix=" pts" onChange={(value) => changeDecisionModel("overBudgetPenaltyCap", value)} />
+                <button className="secondary-button full" onClick={() => setDecisionModel(defaultDecisionModel)}><RefreshCcw size={16} /> Reset decision model</button>
+              </div>
+
+              <div className="live-result-card">
+                <div>
+                  <p className="eyebrow">Live model result</p>
+                  <VehicleBadge powertrain={winner.powertrain} />
+                  <h2>{winner.brand} {winner.model}</h2>
+                  <p>{winner.trim}</p>
+                  <span className={classNames("profile-active", modelChangeCount > 0 && "changed")}>
+                    {modelChangeCount > 0 ? `${modelChangeCount} model setting${modelChangeCount === 1 ? "" : "s"} changed` : "Default decision model active"}
+                  </span>
+                </div>
+                <div className="live-score"><strong>{currentWinnerScore.toFixed(1)}</strong><span>/100 fit</span><small>{modelLoaded ? "Saved automatically" : "Loading saved model"}</small></div>
+                <div className="metric-grid compact">
+                  <div><span>Study evidence</span><strong>{decisionModel.studyEvidenceWeight}%</strong></div>
+                  <div><span>Buyer-fit model</span><strong>{100 - decisionModel.studyEvidenceWeight}%</strong></div>
+                  <div><span>Factor weight total</span><strong>{modelFactorWeightTotal}</strong></div>
+                  <div><span>Budget penalty cap</span><strong>{decisionModel.overBudgetPenaltyCap} pts</strong></div>
+                </div>
+                <div className="profile-ranking">
+                  <div className="profile-ranking-head"><span>Live overall ranking</span><small>Reorders as the model changes</small></div>
+                  {ranked.slice(0, 5).map((vehicle, index) => (
+                    <div className="profile-ranking-row" key={vehicle.id}>
+                      <span>#{index + 1}</span>
+                      <div><strong>{vehicle.brand} {vehicle.model}</strong><small>{vehicle.trim}</small></div>
+                      <b>{personalisedScore(vehicle, profile, decisionModel).toFixed(1)}</b>
+                    </div>
+                  ))}
+                </div>
+                <button className="primary-button" onClick={() => changeView("dashboard")}>View full decision <ChevronRight size={16} /></button>
+              </div>
+            </div>
+            <div className="callout"><Info size={18} /><div><strong>Buyer Profile and Decision model are deliberately separate.</strong><p>Buyer Profile describes the person, usage and priorities. Decision model controls the scoring architecture. For warranty, depreciation and comfort, the buyer priority acts as a multiplier on the engine weight, so both layers remain meaningful.</p></div></div>
           </section>
         ) : null}
 
@@ -680,22 +788,22 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
           <section className="page">
             <PageTitle eyebrow="Research rules preserved" title="How the decision engine works" description="The application mirrors the study: BEVs and PHEVs are ranked separately first, then compared using buyer-specific suitability and total ownership cost." />
             <div className="method-grid">
-              <article className="method-card"><span>01</span><h3>Start with the buyer</h3><p>Budget, mileage, 30–40 mile journey pattern, home charging, cheap electricity and warranty-exit strategy drive the recommendation.</p></article>
-              <article className="method-card"><span>02</span><h3>Separate technologies</h3><p>BEV and PHEV rankings are kept separate. Neither technology receives a blanket bonus simply for its architecture.</p></article>
+              <article className="method-card"><span>01</span><h3>Start with the buyer</h3><p>Budget, mileage, journey pattern, home charging, energy prices and warranty-exit strategy drive the buyer profile.</p></article>
+              <article className="method-card"><span>02</span><h3>Configure the model</h3><p>The evidence blend and factor weights are configurable. The defaults preserve the research model, but the engine is no longer hard-coded.</p></article>
               <article className="method-card"><span>03</span><h3>Model real usage</h3><p>WLTP is not treated as real-world range. PHEV electric share is constrained by real-world range and charging discipline.</p></article>
               <article className="method-card"><span>04</span><h3>Price the whole ownership period</h3><p>TCO includes depreciation, energy, servicing, tax, MOT and a tyre allowance, then applies the intended warranty-exit strategy.</p></article>
               <article className="method-card"><span>05</span><h3>Preserve evidence history</h3><p>New prices, promotions, warranty terms and source snapshots should be time-series records so market changes are auditable.</p></article>
               <article className="method-card"><span>06</span><h3>Show uncertainty</h3><p>Observed data, assumptions and forecasts are different things. Residual-risk labels remain explicit rather than being hidden in one score.</p></article>
             </div>
             <div className="weights-card">
-              <div><p className="eyebrow">Original study weighting</p><h3>100-point decision model</h3></div>
+              <div><p className="eyebrow">Original study weighting</p><h3>100-point research baseline</h3></div>
               <div className="weight-bars">
                 {[
                   ["Purchase price / value", 20], ["Depreciation / resale", 20], ["Warranty", 15], ["Reliability / support", 10], ["Comfort / quality", 10], ["Practicality", 8], ["Running costs", 7], ["Range / flexibility", 4], ["Charging", 3], ["Safety", 2], ["Technology", 1],
                 ].map(([label, value]) => <div className="weight-row" key={label as string}><span>{label}</span><div><i style={{ width: `${Number(value) * 4}%` }} /></div><strong>{value}%</strong></div>)}
               </div>
             </div>
-            <div className="callout"><Info size={18} /><div><strong>This MVP is a decision-support model, not a valuation service.</strong><p>Its architecture is ready for licensed valuations, live adverts, manufacturer feeds and richer reliability data. Until those are connected, residuals and deal thresholds remain transparent research-model assumptions.</p></div></div>
+            <div className="callout"><Info size={18} /><div><strong>The research baseline is evidence, not a locked ranking.</strong><p>The Decision model lets you choose how much of that baseline remains in the final score and how strongly buyer-fit factors influence the recommendation.</p></div></div>
           </section>
         ) : null}
       </main>
