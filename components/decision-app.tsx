@@ -61,10 +61,10 @@ const defaultProfile: BuyerProfile = {
 };
 
 const nav: { id: View; label: string; icon: typeof LayoutDashboard }[] = [
+  { id: "profile", label: "Build your decision", icon: SlidersHorizontal },
   { id: "dashboard", label: "Decision", icon: LayoutDashboard },
   { id: "compare", label: "Compare", icon: GitCompareArrows },
   { id: "deals", label: "Deals", icon: BadgePoundSterling },
-  { id: "profile", label: "Build your decision", icon: SlidersHorizontal },
   { id: "data", label: "Data monitor", icon: Database },
   { id: "methodology", label: "Method", icon: Info },
 ];
