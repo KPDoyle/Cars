@@ -8,6 +8,7 @@ export type DecisionModel = {
   baselineWarrantyWeight: number;
   baselineReliabilityWeight: number;
   baselineComfortWeight: number;
+  baselineAppealWeight: number;
   baselinePracticalityWeight: number;
   baselineRunningCostWeight: number;
   baselineRangeWeight: number;
@@ -36,6 +37,7 @@ export const defaultDecisionModel: DecisionModel = {
   baselineWarrantyWeight: 15,
   baselineReliabilityWeight: 10,
   baselineComfortWeight: 10,
+  baselineAppealWeight: 0,
   baselinePracticalityWeight: 8,
   baselineRunningCostWeight: 7,
   baselineRangeWeight: 4,

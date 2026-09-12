@@ -43,6 +43,7 @@ import type { BuyerProfile, LiveSnapshot, Vehicle } from "@/lib/types";
 
 const vehicles = rawData.vehicles as unknown as Vehicle[];
 const MODEL_STORAGE_KEY = "carwise-decision-model-v1";
+const APPEAL_STORAGE_KEY = "carwise-appeal-scores-v1";
 
 type View = "dashboard" | "compare" | "deals" | "profile" | "model" | "data" | "methodology";
 
@@ -75,6 +76,7 @@ const researchWeightRows: Array<{ key: keyof DecisionModel; label: string; origi
   { key: "baselineWarrantyWeight", label: "Warranty", original: 15 },
   { key: "baselineReliabilityWeight", label: "Reliability / support", original: 10 },
   { key: "baselineComfortWeight", label: "Comfort / quality", original: 10 },
+  { key: "baselineAppealWeight", label: "Looks / appeal", original: 0 },
   { key: "baselinePracticalityWeight", label: "Practicality", original: 8 },
   { key: "baselineRunningCostWeight", label: "Running costs", original: 7 },
   { key: "baselineRangeWeight", label: "Range / flexibility", original: 4 },
@@ -212,6 +214,8 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
   }));
   const [decisionModel, setDecisionModel] = useState<DecisionModel>(defaultDecisionModel);
   const [modelLoaded, setModelLoaded] = useState(false);
+  const [appealScores, setAppealScores] = useState<Record<string, number>>(() => Object.fromEntries(vehicles.map((vehicle) => [vehicle.id, vehicle.appealScore])));
+  const [appealLoaded, setAppealLoaded] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [compareIds, setCompareIds] = useState<string[]>([
     "kia-ev3-air-long-range",
@@ -242,6 +246,25 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
     window.localStorage.setItem(MODEL_STORAGE_KEY, JSON.stringify(decisionModel));
   }, [decisionModel, modelLoaded]);
 
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(APPEAL_STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored) as Record<string, number>;
+        setAppealScores((current) => ({ ...current, ...parsed }));
+      }
+    } catch {
+      // Keep the transparent starting ratings if saved preferences are malformed.
+    } finally {
+      setAppealLoaded(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!appealLoaded) return;
+    window.localStorage.setItem(APPEAL_STORAGE_KEY, JSON.stringify(appealScores));
+  }, [appealScores, appealLoaded]);
+
   const liveVehicles = useMemo(() => {
     const observationMap = new Map(live.vehicleObservations.map((item) => [item.vehicleId, item]));
     return vehicles.map((vehicle) => {
@@ -254,10 +277,11 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
         ...vehicle,
         newPrice: observedPrice ?? vehicle.newPrice,
         nearlyNewPrice: observation?.observedUsedMedian ?? vehicle.nearlyNewPrice,
+        appealScore: appealScores[vehicle.id] ?? vehicle.appealScore,
         taxAnnual: annualTax,
       };
     });
-  }, [live]);
+  }, [live, appealScores]);
 
   const sources = live.sources;
   const safetyMap = useMemo(() => new Map(live.safety.map((item) => [item.vehicleId, item])), [live.safety]);
@@ -281,6 +305,7 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
     .filter((key) => profile[key] !== studyProfile[key]).length;
   const modelChangeCount = (Object.keys(defaultDecisionModel) as Array<keyof DecisionModel>)
     .filter((key) => decisionModel[key] !== defaultDecisionModel[key]).length;
+  const appealChangeCount = vehicles.filter((vehicle) => (appealScores[vehicle.id] ?? vehicle.appealScore) !== vehicle.appealScore).length;
   const modelFactorWeightTotal = decisionModel.budgetWeight
     + decisionModel.warrantyWeight
     + decisionModel.depreciationWeight
@@ -350,6 +375,14 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
 
   const changeDecisionModel = <K extends keyof DecisionModel>(key: K, value: DecisionModel[K]) => {
     setDecisionModel((current) => ({ ...current, [key]: value }));
+  };
+
+  const changeAppealScore = (vehicleId: string, value: number) => {
+    setAppealScores((current) => ({ ...current, [vehicleId]: Math.max(0, Math.min(100, value)) }));
+  };
+
+  const resetAppealScores = () => {
+    setAppealScores(Object.fromEntries(vehicles.map((vehicle) => [vehicle.id, vehicle.appealScore])));
   };
 
   const resetResearchBaseline = () => {
@@ -573,6 +606,7 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
                     <Metric label="Safe warranty exit" value={`${exit.yearsFromPurchase.toFixed(1)} yrs`} />
                     <Metric label="Boot" value={`${vehicle.bootLitres} L`} />
                     <Metric label="Parking score" value={`${vehicle.parkingScore}/100`} />
+                    <Metric label="Looks / appeal" value={`${vehicle.appealScore}/100`} />
                     <Metric label="Euro NCAP" value={safety?.stars ? `${safety.stars}/5 (${safety.testYear ?? "—"})${safety.ratingExpired ? " · expired" : ""}` : "No current result"} />
                     <Metric label="Adult / child safety" value={safety?.adultProtection != null && safety?.childProtection != null ? `${safety.adultProtection}% / ${safety.childProtection}%` : "—"} />
                     <Metric label="Model-year recalls" value={recall?.status === "live" && recall.recallCount != null ? `${recall.recallCount}` : "Check unavailable"} />
@@ -723,7 +757,7 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
               <div className="baseline-editor-top">
                 <div>
                   <h2>Your 100-point formula</h2>
-                  <p>The original study uses 20 + 20 + 15 + 10 + 10 + 8 + 7 + 4 + 3 + 2 + 1 = 100. Change any number to build your own formula.</p>
+                  <p>The original study still totals 100 points. Looks / appeal is now available as an extra subjective factor and starts at 0 points so the published baseline is unchanged until you choose to use it.</p>
                 </div>
                 <div className={classNames("baseline-total", Math.abs(baselineWeightTotal - 100) < 0.05 && "exact")}>
                   <strong>{baselineWeightTotal.toFixed(1)}</strong>
@@ -771,6 +805,52 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
               </div>
             </div>
 
+            <div className="baseline-editor-card">
+              <div className="baseline-editor-top">
+                <div>
+                  <h2>Rate the looks yourself</h2>
+                  <p>Looks are personal. These are starting scores only; change them to match your own taste. They affect the ranking only when you give Looks / appeal some of your 100 decision points.</p>
+                </div>
+                <div className="baseline-total">
+                  <strong>{appealChangeCount}</strong>
+                  <span>ratings changed</span>
+                  <small>{appealLoaded ? "Saved in this browser" : "Loading saved ratings"}</small>
+                </div>
+              </div>
+              <div className="baseline-point-grid">
+                {vehicles.map((vehicle) => (
+                  <label className="baseline-point-row" key={`appeal-${vehicle.id}`}>
+                    <span className="baseline-point-copy">
+                      <strong>{vehicle.brand} {vehicle.model}</strong>
+                      <small>{vehicle.trim} · starting score {vehicle.appealScore}/100</small>
+                    </span>
+                    <span className="baseline-point-input">
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        min={0}
+                        max={100}
+                        step={1}
+                        value={appealScores[vehicle.id] ?? vehicle.appealScore}
+                        onFocus={(event) => event.currentTarget.select()}
+                        onClick={(event) => event.currentTarget.select()}
+                        onChange={(event) => {
+                          const cleaned = event.currentTarget.value.replace(/^0+(?=\d)/, "");
+                          if (cleaned !== event.currentTarget.value) event.currentTarget.value = cleaned;
+                          changeAppealScore(vehicle.id, Number(cleaned) || 0);
+                        }}
+                        aria-label={`${vehicle.brand} ${vehicle.model} looks and appeal rating`}
+                      />
+                      <b>/100</b>
+                    </span>
+                  </label>
+                ))}
+              </div>
+              <div className="baseline-editor-actions">
+                <button className="secondary-button" onClick={resetAppealScores}><RefreshCcw size={16} /> Reset looks ratings</button>
+              </div>
+            </div>
+
             <div className="section-head model-section-head">
               <div><p className="eyebrow">Step 3 · How should CarWise decide?</p><h2>Balance research with your personal fit</h2><p>This decides whether the final answer should lean more on the general research or more on your own circumstances.</p></div>
             </div>
@@ -788,8 +868,8 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
                   <VehicleBadge powertrain={winner.powertrain} />
                   <h2>{winner.brand} {winner.model}</h2>
                   <p>{winner.trim}</p>
-                  <span className={classNames("profile-active", (modelChangeCount > 0 || profileChangeCount > 0) && "changed")}>
-                    {modelChangeCount > 0 || profileChangeCount > 0 ? "Your custom formula is active" : "Original CarWise formula"}
+                  <span className={classNames("profile-active", (modelChangeCount > 0 || profileChangeCount > 0 || appealChangeCount > 0) && "changed")}>
+                    {modelChangeCount > 0 || profileChangeCount > 0 || appealChangeCount > 0 ? "Your custom formula is active" : "Original CarWise formula"}
                   </span>
                 </div>
                 <div className="live-score"><strong>{currentWinnerScore.toFixed(1)}</strong><span>/100 final fit</span><small>{modelLoaded ? "Saved automatically" : "Loading saved model"}</small></div>
@@ -889,7 +969,7 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
             <PageTitle eyebrow="Research rules preserved" title="How the decision engine works" description="The application mirrors the study: BEVs and PHEVs are ranked separately first, then compared using the configurable research baseline, buyer-specific suitability and total ownership cost." />
             <div className="method-grid">
               <article className="method-card"><span>01</span><h3>Start with the buyer</h3><p>Budget, mileage, journey pattern, home charging, energy prices and warranty-exit strategy drive the buyer profile.</p></article>
-              <article className="method-card"><span>02</span><h3>Configure the research baseline</h3><p>All 11 original 100-point study factors are editable. The active weights are normalised automatically to 100.</p></article>
+              <article className="method-card"><span>02</span><h3>Configure the research baseline</h3><p>The 11 original study factors remain editable, with Looks / appeal added as a 12th subjective factor. It starts at 0 points so the published 100-point benchmark is preserved.</p></article>
               <article className="method-card"><span>03</span><h3>Blend research and buyer fit</h3><p>Choose how much the configured research baseline contributes to the final result, then tune the personalised scoring layer separately.</p></article>
               <article className="method-card"><span>04</span><h3>Model real usage</h3><p>WLTP is not treated as real-world range. PHEV electric share is constrained by real-world range and charging discipline.</p></article>
               <article className="method-card"><span>05</span><h3>Price the ownership period</h3><p>TCO includes depreciation, energy, servicing, tax, MOT and a tyre allowance, then applies the intended warranty-exit strategy.</p></article>
@@ -904,7 +984,7 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
                 })}
               </div>
             </div>
-            <div className="callout"><Info size={18} /><div><strong>Resetting the Decision model restores the published study.</strong><p>The original 20/20/15/10/10/8/7/4/3/2/1 weighting reproduces the stored research scores exactly; the configurable layer then lets you test alternative research priorities without losing the original benchmark.</p></div></div>
+            <div className="callout"><Info size={18} /><div><strong>Resetting the Decision model restores the published study.</strong><p>The original 20/20/15/10/10/8/7/4/3/2/1 weighting still reproduces the stored research scores exactly. Looks / appeal defaults to 0 points and only changes the result when you choose to allocate points to it.</p></div></div>
           </section>
         ) : null}
       </main>
