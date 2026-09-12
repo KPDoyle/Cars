@@ -353,6 +353,36 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
     setDecisionModel((current) => ({ ...current, [key]: value }));
   };
 
+  const resetResearchBaseline = () => {
+    setDecisionModel((current) => {
+      const next = { ...current };
+      for (const item of researchWeightRows) next[item.key] = defaultDecisionModel[item.key];
+      return next;
+    });
+  };
+
+  const normaliseResearchBaseline = () => {
+    setDecisionModel((current) => {
+      const total = researchWeightRows.reduce((sum, item) => sum + current[item.key], 0);
+      const next = { ...current };
+      if (total <= 0) {
+        for (const item of researchWeightRows) next[item.key] = defaultDecisionModel[item.key];
+        return next;
+      }
+      let allocated = 0;
+      researchWeightRows.forEach((item, index) => {
+        if (index === researchWeightRows.length - 1) {
+          next[item.key] = Math.max(0, Number((100 - allocated).toFixed(1)));
+          return;
+        }
+        const value = Number(((current[item.key] / total) * 100).toFixed(1));
+        next[item.key] = value;
+        allocated += value;
+      });
+      return next;
+    });
+  };
+
   const refreshLive = async () => {
     setRefreshing(true);
     try {
@@ -697,35 +727,52 @@ export function DecisionApp({ initialLive }: { initialLive: LiveSnapshot }) {
           <section className="page">
             <PageTitle eyebrow="Configure the engine" title="Decision model" description="Control the 100-point research baseline, the research-vs-buyer blend and the live buyer-fit scoring rules. Changes update every ranking immediately and are saved in this browser." />
 
-            <div className="section-head">
-              <div><p className="eyebrow">Layer 1</p><h2>100-point research baseline</h2><p>Change the original study weighting itself. CarWise normalises the active weights to 100 automatically.</p></div>
-            </div>
-            <div className="profile-layout">
-              {[
-                ["Value & ownership", researchWeightRows.slice(0, 3)],
-                ["Quality & usability", researchWeightRows.slice(3, 6)],
-                ["Efficiency & flexibility", researchWeightRows.slice(6, 9)],
-                ["Risk & technology", researchWeightRows.slice(9, 11)],
-              ].map(([title, rows]) => (
-                <div className="settings-card" key={title as string}>
-                  <h3>{title as string}</h3>
-                  {(rows as typeof researchWeightRows).map((item) => (
-                    <RangeField
-                      key={item.key}
-                      label={`${item.label} · original ${item.original}`}
-                      value={decisionModel[item.key]}
-                      min={0}
-                      max={40}
-                      step={1}
-                      suffix=" pts"
-                      onChange={(value) => changeDecisionModel(item.key, value)}
-                    />
-                  ))}
-                  {title === "Risk & technology" ? (
-                    <div className="assumption-note"><Info size={17} /><p>Raw weight total: <strong>{baselineWeightTotal}</strong>. The engine automatically rescales these values proportionally to a 100-point baseline, so the total does not have to equal 100 while you edit.</p></div>
-                  ) : null}
+            <div className="baseline-editor-card">
+              <div className="baseline-editor-top">
+                <div>
+                  <p className="eyebrow">Layer 1 · edit this first</p>
+                  <h2>Edit the 100 research points</h2>
+                  <p>Type the number of points you want to give each research factor. The original study starts at 20 + 20 + 15 + 10 + 10 + 8 + 7 + 4 + 3 + 2 + 1 = 100.</p>
                 </div>
-              ))}
+                <div className={classNames("baseline-total", Math.abs(baselineWeightTotal - 100) < 0.05 && "exact")}>
+                  <strong>{baselineWeightTotal.toFixed(1)}</strong>
+                  <span>/ 100 raw points</span>
+                  <small>{Math.abs(baselineWeightTotal - 100) < 0.05 ? "Exactly 100" : "Auto-normalised to 100"}</small>
+                </div>
+              </div>
+
+              <div className="baseline-point-grid">
+                {researchWeightRows.map((item) => {
+                  const effective = baselineWeightTotal > 0 ? (decisionModel[item.key] / baselineWeightTotal) * 100 : 0;
+                  return (
+                    <label className="baseline-point-row" key={item.key}>
+                      <span className="baseline-point-copy">
+                        <strong>{item.label}</strong>
+                        <small>Original {item.original}/100 · Effective {effective.toFixed(1)}/100</small>
+                      </span>
+                      <span className="baseline-point-input">
+                        <input
+                          type="number"
+                          inputMode="decimal"
+                          min={0}
+                          max={100}
+                          step={1}
+                          value={decisionModel[item.key]}
+                          onChange={(event) => changeDecisionModel(item.key, Math.max(0, Math.min(100, Number(event.target.value) || 0)))}
+                          aria-label={`${item.label} research points`}
+                        />
+                        <b>pts</b>
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+
+              <div className="baseline-editor-actions">
+                <button className="primary-button" onClick={normaliseResearchBaseline}>Normalise to exactly 100</button>
+                <button className="secondary-button" onClick={resetResearchBaseline}><RefreshCcw size={16} /> Reset original 100</button>
+              </div>
+              <p className="baseline-editor-note">If the raw total is not exactly 100, CarWise still works: it automatically converts the figures into an effective 100-point allocation. Press “Normalise to exactly 100” if you want the entered numbers themselves to add to 100.</p>
             </div>
 
             <div className="section-head model-section-head">
