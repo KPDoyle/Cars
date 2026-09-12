@@ -1,4 +1,5 @@
 import type { BuyerProfile, Vehicle } from "./types";
+import { defaultDecisionModel, type DecisionModel } from "./decision-model";
 
 const UK_GALLON_LITRES = 4.54609;
 
@@ -143,10 +144,11 @@ function buyerStrategyFit(vehicle: Vehicle, profile: BuyerProfile) {
   return clamp(60 + (firstOwnerSaving * 180), 50, 100);
 }
 
-export function personalisedScore(vehicle: Vehicle, profile: BuyerProfile) {
-  // 30% preserves the underlying study evidence; 70% is recalculated from
-  // the active buyer profile so changing the profile can genuinely change
-  // the recommended vehicle rather than merely nudging a fixed ranking.
+export function personalisedScore(
+  vehicle: Vehicle,
+  profile: BuyerProfile,
+  model: DecisionModel = defaultDecisionModel,
+) {
   const budgetFit = buyerBudgetFit(vehicle, profile);
   const warrantyFit = buyerWarrantyFit(vehicle, profile);
   const depreciationFit = buyerDepreciationFit(vehicle);
@@ -155,17 +157,19 @@ export function personalisedScore(vehicle: Vehicle, profile: BuyerProfile) {
   const journeyFit = buyerJourneyFit(vehicle, profile);
   const strategyFit = buyerStrategyFit(vehicle, profile);
 
+  // Buyer Profile priorities act as multipliers on the configurable engine
+  // weights. This keeps "who is buying" separate from "how CarWise scores".
   const weights = {
-    budget: 25,
-    warranty: profile.warrantyWeight,
-    depreciation: profile.depreciationWeight,
-    comfort: profile.comfortWeight,
-    running: 10 + clamp(((profile.annualMiles - 8000) / 17000) * 10, 0, 10),
-    journey: 10,
-    strategy: 8,
+    budget: Math.max(0, model.budgetWeight),
+    warranty: Math.max(0, model.warrantyWeight * (profile.warrantyWeight / 15)),
+    depreciation: Math.max(0, model.depreciationWeight * (profile.depreciationWeight / 20)),
+    comfort: Math.max(0, model.comfortWeight * (profile.comfortWeight / 10)),
+    running: Math.max(0, model.runningCostWeight),
+    journey: Math.max(0, model.journeyWeight),
+    strategy: Math.max(0, model.strategyWeight),
   };
 
-  const totalWeight = Object.values(weights).reduce((sum, weight) => sum + weight, 0);
+  const totalWeight = Math.max(1, Object.values(weights).reduce((sum, weight) => sum + weight, 0));
   const dynamicFit = (
     (budgetFit * weights.budget)
     + (warrantyFit * weights.warranty)
@@ -176,13 +180,18 @@ export function personalisedScore(vehicle: Vehicle, profile: BuyerProfile) {
     + (strategyFit * weights.strategy)
   ) / totalWeight;
 
-  let score = (vehicle.baseScore * 0.30) + (dynamicFit * 0.70);
+  const studyShare = clamp(model.studyEvidenceWeight, 0, 100) / 100;
+  let score = (vehicle.baseScore * studyShare) + (dynamicFit * (1 - studyShare));
 
-  // Maximum budget behaves like a real constraint. A vehicle over budget can
-  // still be seen in comparisons, but is strongly penalised in recommendations.
+  // Maximum budget remains a real constraint, but its severity can now be
+  // tuned from the Decision model screen.
   const price = purchasePrice(vehicle, profile);
   if (price > profile.budget) {
-    score -= Math.min(25, 5 + (((price - profile.budget) / 1000) * 4));
+    const overBudgetThousands = (price - profile.budget) / 1000;
+    score -= Math.min(
+      Math.max(0, model.overBudgetPenaltyCap),
+      Math.max(0, model.overBudgetBasePenalty) + (overBudgetThousands * Math.max(0, model.overBudgetPenaltyPer1000)),
+    );
   }
 
   return Math.max(0, Math.min(100, score));
