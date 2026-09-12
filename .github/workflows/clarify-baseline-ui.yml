@@ -1,0 +1,171 @@
+name: Clarify baseline editor
+
+on:
+  push:
+    branches: [baseline-ui-clarity]
+    paths:
+      - .github/workflows/clarify-baseline-ui.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: baseline-ui-clarity
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Patch baseline editor
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          component_path = Path('components/decision-app.tsx')
+          css_path = Path('app/globals.css')
+          component = component_path.read_text()
+
+          anchor = '''  const changeDecisionModel = <K extends keyof DecisionModel>(key: K, value: DecisionModel[K]) => {
+    setDecisionModel((current) => ({ ...current, [key]: value }));
+  };
+'''
+          helpers = '''  const changeDecisionModel = <K extends keyof DecisionModel>(key: K, value: DecisionModel[K]) => {
+    setDecisionModel((current) => ({ ...current, [key]: value }));
+  };
+
+  const resetResearchBaseline = () => {
+    setDecisionModel((current) => {
+      const next = { ...current };
+      for (const item of researchWeightRows) next[item.key] = defaultDecisionModel[item.key];
+      return next;
+    });
+  };
+
+  const normaliseResearchBaseline = () => {
+    setDecisionModel((current) => {
+      const total = researchWeightRows.reduce((sum, item) => sum + current[item.key], 0);
+      const next = { ...current };
+      if (total <= 0) {
+        for (const item of researchWeightRows) next[item.key] = defaultDecisionModel[item.key];
+        return next;
+      }
+      let allocated = 0;
+      researchWeightRows.forEach((item, index) => {
+        if (index === researchWeightRows.length - 1) {
+          next[item.key] = Math.max(0, Number((100 - allocated).toFixed(1)));
+          return;
+        }
+        const value = Number(((current[item.key] / total) * 100).toFixed(1));
+        next[item.key] = value;
+        allocated += value;
+      });
+      return next;
+    });
+  };
+'''
+          if 'const normaliseResearchBaseline' not in component:
+              if anchor not in component:
+                  raise SystemExit('changeDecisionModel anchor not found')
+              component = component.replace(anchor, helpers, 1)
+
+          pattern = re.compile(
+              r'            <div className="section-head">\n              <div><p className="eyebrow">Layer 1</p><h2>100-point research baseline</h2>.*?            <div className="section-head model-section-head">',
+              re.S,
+          )
+          replacement = '''            <div className="baseline-editor-card">
+              <div className="baseline-editor-top">
+                <div>
+                  <p className="eyebrow">Layer 1 · edit this first</p>
+                  <h2>Edit the 100 research points</h2>
+                  <p>Type the number of points you want to give each research factor. The original study starts at 20 + 20 + 15 + 10 + 10 + 8 + 7 + 4 + 3 + 2 + 1 = 100.</p>
+                </div>
+                <div className={classNames("baseline-total", Math.abs(baselineWeightTotal - 100) < 0.05 && "exact")}>
+                  <strong>{baselineWeightTotal.toFixed(1)}</strong>
+                  <span>/ 100 raw points</span>
+                  <small>{Math.abs(baselineWeightTotal - 100) < 0.05 ? "Exactly 100" : "Auto-normalised to 100"}</small>
+                </div>
+              </div>
+
+              <div className="baseline-point-grid">
+                {researchWeightRows.map((item) => {
+                  const effective = baselineWeightTotal > 0 ? (decisionModel[item.key] / baselineWeightTotal) * 100 : 0;
+                  return (
+                    <label className="baseline-point-row" key={item.key}>
+                      <span className="baseline-point-copy">
+                        <strong>{item.label}</strong>
+                        <small>Original {item.original}/100 · Effective {effective.toFixed(1)}/100</small>
+                      </span>
+                      <span className="baseline-point-input">
+                        <input
+                          type="number"
+                          inputMode="decimal"
+                          min={0}
+                          max={100}
+                          step={1}
+                          value={decisionModel[item.key]}
+                          onChange={(event) => changeDecisionModel(item.key, Math.max(0, Math.min(100, Number(event.target.value) || 0)))}
+                          aria-label={`${item.label} research points`}
+                        />
+                        <b>pts</b>
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+
+              <div className="baseline-editor-actions">
+                <button className="primary-button" onClick={normaliseResearchBaseline}>Normalise to exactly 100</button>
+                <button className="secondary-button" onClick={resetResearchBaseline}><RefreshCcw size={16} /> Reset original 100</button>
+              </div>
+              <p className="baseline-editor-note">If the raw total is not exactly 100, CarWise still works: it automatically converts the figures into an effective 100-point allocation. Press “Normalise to exactly 100” if you want the entered numbers themselves to add to 100.</p>
+            </div>
+
+            <div className="section-head model-section-head">'''
+          component, count = pattern.subn(replacement, component, count=1)
+          if count != 1:
+              raise SystemExit(f'baseline section replacement count={count}')
+          component_path.write_text(component)
+
+          css = css_path.read_text()
+          marker = '/* clearer 100-point baseline editor */'
+          if marker not in css:
+              css += '''\n\n/* clearer 100-point baseline editor */
+.baseline-editor-card { background: linear-gradient(145deg, #ffffff, #f8fbff); border: 2px solid #b8ccff; border-radius: 24px; padding: 24px; box-shadow: 0 14px 40px rgba(27,92,255,.08); margin-top: 22px; }
+.baseline-editor-top { display: flex; justify-content: space-between; gap: 24px; align-items: flex-start; }
+.baseline-editor-top h2 { margin: 0; font-size: 27px; letter-spacing: -.045em; }
+.baseline-editor-top p:not(.eyebrow) { margin: 8px 0 0; max-width: 800px; color: var(--muted); font-size: 12px; line-height: 1.55; }
+.baseline-total { flex: 0 0 150px; border-radius: 18px; padding: 15px; text-align: center; background: #fff6e8; border: 1px solid #f0d29d; }
+.baseline-total.exact { background: var(--green-soft); border-color: #b9e6d3; }
+.baseline-total strong { display: block; font-size: 28px; letter-spacing: -.04em; }
+.baseline-total span, .baseline-total small { display: block; color: var(--muted); font-size: 9px; margin-top: 2px; }
+.baseline-point-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 14px; margin-top: 20px; }
+.baseline-point-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px 13px; border: 1px solid var(--line); border-radius: 14px; background: white; }
+.baseline-point-copy strong { display: block; font-size: 12px; }
+.baseline-point-copy small { display: block; margin-top: 3px; color: var(--muted-2); font-size: 9px; }
+.baseline-point-input { display: flex; align-items: center; gap: 5px; flex: 0 0 auto; }
+.baseline-point-input input { width: 70px; border: 1px solid #bdc9dc; border-radius: 10px; background: #f8fafc; padding: 9px 8px; text-align: right; font-weight: 800; color: var(--ink); }
+.baseline-point-input input:focus { outline: 2px solid rgba(27,92,255,.18); border-color: var(--blue); }
+.baseline-point-input b { color: var(--muted); font-size: 9px; }
+.baseline-editor-actions { display: flex; gap: 9px; margin-top: 16px; flex-wrap: wrap; }
+.baseline-editor-note { color: var(--muted); font-size: 10px; line-height: 1.5; margin: 12px 0 0; }
+.model-section-head { margin-top: 42px; }
+@media (max-width: 800px) {
+  .baseline-editor-card { padding: 18px; }
+  .baseline-editor-top { display: grid; }
+  .baseline-total { width: 100%; }
+  .baseline-point-grid { grid-template-columns: 1fr; }
+  .baseline-point-row { align-items: flex-start; }
+}
+'''
+              css_path.write_text(css)
+          PY
+          rm .github/workflows/clarify-baseline-ui.yml
+          git config user.name "carwise-ui-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add components/decision-app.tsx app/globals.css .github/workflows/clarify-baseline-ui.yml
+          git commit -m "feat: make 100-point baseline editor explicit"
+          git push origin HEAD:baseline-ui-clarity
