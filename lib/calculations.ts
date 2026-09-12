@@ -115,6 +115,7 @@ export type ResearchFactorScores = {
   warranty: number;
   reliability: number;
   comfort: number;
+  appeal: number;
   practicality: number;
   runningCost: number;
   range: number;
@@ -170,6 +171,7 @@ export function researchFactorScores(vehicle: Vehicle): ResearchFactorScores {
     warranty: researchWarrantyScore(vehicle),
     reliability: vehicle.reliabilityScore,
     comfort: vehicle.comfortScore,
+    appeal: vehicle.appealScore,
     practicality: vehicle.practicalityScore,
     runningCost: researchRunningCostScore(vehicle),
     range: researchRangeScore(vehicle),
@@ -187,6 +189,7 @@ function weightedResearchScore(vehicle: Vehicle, model: DecisionModel) {
     warranty: Math.max(0, model.baselineWarrantyWeight),
     reliability: Math.max(0, model.baselineReliabilityWeight),
     comfort: Math.max(0, model.baselineComfortWeight),
+    appeal: Math.max(0, model.baselineAppealWeight),
     practicality: Math.max(0, model.baselinePracticalityWeight),
     runningCost: Math.max(0, model.baselineRunningCostWeight),
     range: Math.max(0, model.baselineRangeWeight),
@@ -201,6 +204,7 @@ function weightedResearchScore(vehicle: Vehicle, model: DecisionModel) {
     + (factors.warranty * weights.warranty)
     + (factors.reliability * weights.reliability)
     + (factors.comfort * weights.comfort)
+    + (factors.appeal * weights.appeal)
     + (factors.practicality * weights.practicality)
     + (factors.runningCost * weights.runningCost)
     + (factors.range * weights.range)
@@ -212,7 +216,7 @@ function weightedResearchScore(vehicle: Vehicle, model: DecisionModel) {
 
 export function researchBaselineScore(vehicle: Vehicle, model: DecisionModel = defaultDecisionModel) {
   // Calibration preserves every published baseScore under the original
-  // 20/20/15/10/10/8/7/4/3/2/1 research weights. Editing the weights then
+  // 20/20/15/10/10/8/7/4/3/2/1 research weights, with looks/appeal at 0. Editing the weights then
   // moves each vehicle up or down according to its underlying factor evidence.
   const originalComposite = weightedResearchScore(vehicle, defaultDecisionModel);
   const configuredComposite = weightedResearchScore(vehicle, model);

@@ -43,7 +43,8 @@
       "sourceIds": [
         "kia-ev3-price",
         "kia-warranty"
-      ]
+      ],
+      "appealScore": 88
     },
     {
       "id": "toyota-chr-plus-design",
@@ -86,7 +87,8 @@
       "sourceIds": [
         "toyota-chrplus",
         "toyota-warranty"
-      ]
+      ],
+      "appealScore": 86
     },
     {
       "id": "renault-scenic-techno-lr",
@@ -129,7 +131,8 @@
       "sourceIds": [
         "renault-scenic",
         "renault-warranty"
-      ]
+      ],
+      "appealScore": 90
     },
     {
       "id": "skoda-elroq-85-se",
@@ -172,7 +175,8 @@
       "sourceIds": [
         "skoda-elroq",
         "skoda-warranty"
-      ]
+      ],
+      "appealScore": 84
     },
     {
       "id": "hyundai-kona-electric-65",
@@ -215,7 +219,8 @@
       "sourceIds": [
         "hyundai-kona",
         "hyundai-warranty"
-      ]
+      ],
+      "appealScore": 82
     },
     {
       "id": "toyota-rav4-phev-icon",
@@ -259,7 +264,8 @@
       "sourceIds": [
         "toyota-rav4",
         "toyota-warranty"
-      ]
+      ],
+      "appealScore": 78
     },
     {
       "id": "ford-kuga-phev-stline",
@@ -303,7 +309,8 @@
       "sourceIds": [
         "ford-kuga",
         "ford-warranty"
-      ]
+      ],
+      "appealScore": 81
     },
     {
       "id": "mg-hs-phev-trophy",
@@ -347,7 +354,8 @@
       "sourceIds": [
         "mg-hs",
         "mg-warranty"
-      ]
+      ],
+      "appealScore": 83
     }
   ],
   "sources": [

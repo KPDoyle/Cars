@@ -29,6 +29,7 @@ export type Vehicle = {
   widthMm: number;
   parkingScore: number;
   comfortScore: number;
+  appealScore: number;
   practicalityScore: number;
   reliabilityScore: number;
   safetyScore: number;
