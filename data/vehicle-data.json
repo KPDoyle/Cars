@@ -366,7 +366,7 @@
       "type": "Manufacturer pricing",
       "quality": "Primary",
       "refreshHours": 24,
-      "lastChecked": "2026-09-25T11:49:19.090Z",
+      "lastChecked": "2026-09-25T17:09:29.334Z",
       "status": "current",
       "expectedPrice": 34555,
       "anchors": [
@@ -376,7 +376,7 @@
       ],
       "contentHash": "ca6e3bf405d1c535c85f",
       "observedPrice": 34555,
-      "observedAt": "2026-09-25T11:49:19.090Z"
+      "observedAt": "2026-09-25T17:09:29.334Z"
     },
     {
       "id": "kia-warranty",
@@ -385,7 +385,7 @@
       "type": "Warranty",
       "quality": "Primary",
       "refreshHours": 168,
-      "lastChecked": "2026-09-25T11:49:19.090Z",
+      "lastChecked": "2026-09-25T17:09:29.334Z",
       "status": "current",
       "anchors": [
         "7 year",
@@ -400,17 +400,17 @@
       "type": "Manufacturer pricing",
       "quality": "Primary",
       "refreshHours": 24,
-      "lastChecked": "2026-09-25T11:49:19.090Z",
-      "status": "current",
+      "lastChecked": "2026-09-25T17:09:29.334Z",
+      "status": "changed",
       "anchors": [
         "C-HR+",
         "Design",
         "77"
       ],
       "expectedPrice": 36150,
-      "contentHash": "1a58c7821f498160ca08",
+      "contentHash": "6fab59900e9276d79414",
       "observedPrice": 36995,
-      "observedAt": "2026-09-25T11:49:19.090Z"
+      "observedAt": "2026-09-25T17:09:29.334Z"
     },
     {
       "id": "toyota-rav4",
@@ -419,8 +419,8 @@
       "type": "Manufacturer pricing",
       "quality": "Primary",
       "refreshHours": 24,
-      "lastChecked": "2026-09-25T11:49:19.090Z",
-      "status": "changed",
+      "lastChecked": "2026-09-25T17:09:29.334Z",
+      "status": "current",
       "expectedPrice": 43845,
       "anchors": [
         "RAV4",
@@ -428,7 +428,7 @@
       ],
       "contentHash": "35c9d3c24b7f21dff212",
       "observedPrice": 43845,
-      "observedAt": "2026-09-25T11:49:19.090Z"
+      "observedAt": "2026-09-25T17:09:29.334Z"
     },
     {
       "id": "toyota-warranty",
@@ -437,7 +437,7 @@
       "type": "Warranty",
       "quality": "Primary",
       "refreshHours": 168,
-      "lastChecked": "2026-09-25T11:49:19.090Z",
+      "lastChecked": "2026-09-25T17:09:29.334Z",
       "status": "current",
       "anchors": [
         "10 years",
@@ -452,7 +452,7 @@
       "type": "Manufacturer pricing",
       "quality": "Primary",
       "refreshHours": 24,
-      "lastChecked": "2026-09-25T11:49:19.090Z",
+      "lastChecked": "2026-09-25T17:09:29.334Z",
       "status": "current",
       "expectedPrice": 33245,
       "anchors": [
@@ -461,7 +461,7 @@
       ],
       "contentHash": "34fa41cc3680b3424590",
       "observedPrice": 33245,
-      "observedAt": "2026-09-25T11:49:19.090Z",
+      "observedAt": "2026-09-25T17:09:29.334Z",
       "lastError": "HTTP 403"
     },
     {
@@ -471,7 +471,7 @@
       "type": "Warranty",
       "quality": "Primary",
       "refreshHours": 168,
-      "lastChecked": "2026-09-25T11:49:19.090Z",
+      "lastChecked": "2026-09-25T17:09:29.334Z",
       "status": "current",
       "anchors": [
         "3 year",
@@ -488,7 +488,7 @@
       "type": "Manufacturer pricing",
       "quality": "Primary",
       "refreshHours": 24,
-      "lastChecked": "2026-09-25T11:49:19.090Z",
+      "lastChecked": "2026-09-25T17:09:29.334Z",
       "status": "current",
       "expectedPrice": 35450,
       "anchors": [
@@ -497,7 +497,7 @@
       ],
       "contentHash": "112b8be390eba9b453a4",
       "observedPrice": 34870,
-      "observedAt": "2026-09-25T11:49:19.090Z"
+      "observedAt": "2026-09-25T17:09:29.334Z"
     },
     {
       "id": "skoda-warranty",
@@ -506,7 +506,7 @@
       "type": "Warranty",
       "quality": "Primary",
       "refreshHours": 168,
-      "lastChecked": "2026-09-25T11:49:19.090Z",
+      "lastChecked": "2026-09-25T17:09:29.334Z",
       "status": "current",
       "contentHash": "558296367cb84bb88516"
     },
@@ -517,14 +517,14 @@
       "type": "Manufacturer pricing",
       "quality": "Primary",
       "refreshHours": 24,
-      "lastChecked": "2026-09-25T11:49:19.090Z",
+      "lastChecked": "2026-09-25T17:09:29.334Z",
       "status": "changed",
       "expectedPrice": 31250,
       "anchors": [
         "KONA Electric Advance 65kWh",
         "On The Road Price"
       ],
-      "contentHash": "76c9f721293bda7bf2b6"
+      "contentHash": "0a52bbe2810cfedfe7b0"
     },
     {
       "id": "hyundai-warranty",
@@ -533,9 +533,9 @@
       "type": "Warranty",
       "quality": "Primary",
       "refreshHours": 168,
-      "lastChecked": "2026-09-25T11:49:19.090Z",
-      "status": "current",
-      "contentHash": "24fb82cc7dd3dee495b1"
+      "lastChecked": "2026-09-25T17:09:29.334Z",
+      "status": "changed",
+      "contentHash": "b742bef57d35de148f71"
     },
     {
       "id": "ford-kuga",
@@ -544,7 +544,7 @@
       "type": "Manufacturer pricing",
       "quality": "Primary",
       "refreshHours": 24,
-      "lastChecked": "2026-09-25T11:49:19.090Z",
+      "lastChecked": "2026-09-25T17:09:29.334Z",
       "status": "current",
       "anchors": [
         "Kuga",
@@ -560,7 +560,7 @@
       "type": "Warranty",
       "quality": "Primary",
       "refreshHours": 168,
-      "lastChecked": "2026-09-25T11:49:19.090Z",
+      "lastChecked": "2026-09-25T17:09:29.334Z",
       "status": "current",
       "contentHash": "3c6b829b19832e1059ff"
     },
@@ -571,16 +571,16 @@
       "type": "Dealer pricing",
       "quality": "Dealer",
       "refreshHours": 24,
-      "lastChecked": "2026-09-25T11:49:19.090Z",
-      "status": "current",
+      "lastChecked": "2026-09-25T17:09:29.334Z",
+      "status": "changed",
       "expectedPrice": 34995,
       "anchors": [
         "HS Plug-in Hybrid",
         "Trophy"
       ],
-      "contentHash": "2df549e2eba59dbf4c24",
+      "contentHash": "b766808f4c7173e71451",
       "observedPrice": 34995,
-      "observedAt": "2026-09-25T11:49:19.090Z"
+      "observedAt": "2026-09-25T17:09:29.334Z"
     },
     {
       "id": "mg-warranty",
@@ -589,14 +589,14 @@
       "type": "Warranty",
       "quality": "Dealer",
       "refreshHours": 168,
-      "lastChecked": "2026-09-25T11:49:19.090Z",
-      "status": "current",
+      "lastChecked": "2026-09-25T17:09:29.334Z",
+      "status": "changed",
       "anchors": [
         "MG",
         "7 years",
         "80,000 miles"
       ],
-      "contentHash": "510ef173e76321fe571d"
+      "contentHash": "7ec55c45a705ae76a127"
     },
     {
       "id": "gov-ev-grant",
@@ -605,7 +605,7 @@
       "type": "Government incentive",
       "quality": "Primary",
       "refreshHours": 24,
-      "lastChecked": "2026-09-25T11:49:19.090Z",
+      "lastChecked": "2026-09-25T17:09:29.334Z",
       "status": "failed",
       "lastError": "HTTP 404"
     },
@@ -616,7 +616,7 @@
       "type": "Taxation",
       "quality": "Primary",
       "refreshHours": 24,
-      "lastChecked": "2026-09-25T11:49:19.090Z",
+      "lastChecked": "2026-09-25T17:09:29.334Z",
       "status": "current",
       "contentHash": "d280390a64795d4c4967"
     },
@@ -627,14 +627,14 @@
       "type": "Safety",
       "quality": "Primary",
       "refreshHours": 168,
-      "lastChecked": "2026-09-25T11:49:19.090Z",
+      "lastChecked": "2026-09-25T17:09:29.334Z",
       "status": "current",
       "contentHash": "a4f2a3e8cf7b7ab047d0"
     }
   ],
   "monitor": {
-    "lastRun": "2026-09-25T11:49:19.090Z",
-    "changedSources": 2,
+    "lastRun": "2026-09-25T17:09:29.334Z",
+    "changedSources": 5,
     "failedSources": 1
   }
 }
