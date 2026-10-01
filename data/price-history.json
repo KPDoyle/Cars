@@ -152,5 +152,21 @@
     "price": 36995,
     "previousPrice": 36150,
     "url": "https://www.toyota.co.uk/new-cars/c-hr-plus"
+  },
+  {
+    "checkedAt": "2026-10-01T13:11:10.237Z",
+    "sourceId": "toyota-rav4",
+    "sourceName": "Toyota UK RAV4",
+    "price": 44195,
+    "previousPrice": 43845,
+    "url": "https://www.toyota.co.uk/new-cars/rav4"
+  },
+  {
+    "checkedAt": "2026-10-01T13:11:10.237Z",
+    "sourceId": "renault-scenic",
+    "sourceName": "Renault UK Scenic E-Tech",
+    "price": 31995,
+    "previousPrice": 33245,
+    "url": "https://www.renault.co.uk/electric-vehicles/scenic/prices-offers.html?gradeCode=ENS_MDL2P1SERIELIM2"
   }
 ]
