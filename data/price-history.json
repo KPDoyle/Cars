@@ -192,5 +192,13 @@
     "price": 35195,
     "previousPrice": 34870,
     "url": "https://www.skoda.co.uk/new-cars/elroq/elroq"
+  },
+  {
+    "checkedAt": "2026-10-07T05:57:07.219Z",
+    "sourceId": "toyota-chrplus",
+    "sourceName": "Toyota UK C-HR+",
+    "price": 36245,
+    "previousPrice": 35495,
+    "url": "https://www.toyota.co.uk/new-cars/c-hr-plus"
   }
 ]
