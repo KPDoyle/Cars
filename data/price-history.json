@@ -224,5 +224,13 @@
     "price": 44195,
     "previousPrice": 43845,
     "url": "https://www.toyota.co.uk/new-cars/rav4"
+  },
+  {
+    "checkedAt": "2026-10-09T06:06:41.437Z",
+    "sourceId": "toyota-chrplus",
+    "sourceName": "Toyota UK C-HR+",
+    "price": 36245,
+    "previousPrice": 35495,
+    "url": "https://www.toyota.co.uk/new-cars/c-hr-plus"
   }
 ]
